@@ -294,14 +294,15 @@ def readlumi_db():
                                 
                                 if '(/pb)' in column[3]:
                                     str_ls=column[3].split('(/pb)')
+                                    float_ls=float(str_ls[0])
                                 if '(/nb)' in column[3]:
                                     str_ls=column[3].split('(/nb)')
-                                    str_ls=str_ls/1e03
+                                    float_ls=float(str_ls[0])/1e03
                                 if '(/ub)' in column[3]:
                                     str_ls=column[3].split('(/ub)')
-                                    str_ls=str_ls/1e06
+                                    float_ls=float(str_ls[0])/1e06
                                 
-                                tmplumi_deliv=float(str_ls[0])*1e06
+                                tmplumi_deliv=float_ls*1e06
                                 
                             except:
                                 tmplumi_deliv=0.
@@ -527,21 +528,21 @@ def makeplot(cur):
     ll_deliv_nr = tot_deliv_nr/coeff
 
     print "In the run range:",RUNMIN,"-",RUNMAX
-    print "Delivered luminosity: %2.2f /pb" % (ll_deliv/1e+6)
-    print "Recorded  luminosity: %2.2f /pb" % (ll_rec/1e+6)
-    print "Certified luminosity: %2.2f /pb" % (ll/1e+6)
-    print "Rejected  luminosity: %2.2f /pb" % ((ll_rec-ll)/1e+6)
-    print "Efficiency of certified luminosity: %2.2f%%" % (100.*ll/ll_rec)
-    print "Delivered luminosity last week: %2.2f /pb" % (ll_deliv_lw/1e+6)
-    print "Recorded  luminosity last week: %2.2f /pb" % (ll_rec_lw/1e+6)
-    print "Certified luminosity last week: %2.2f /pb" % (ll_lw/1e+6)
-    print "Rejected  luminosity last week: %2.2f /pb" % ((ll_rec_lw-ll_lw)/1e+6)
-    print "Efficiency of certified luminosity last week: %2.2f%%" % (100.*ll_lw/ll_rec_lw)
-    print "Delivered luminosity new runs: %2.2f /pb" % (ll_deliv_nr/1e+6)
-    print "Recorded  luminosity new runs: %2.2f /pb" % (ll_rec_nr/1e+6)
-    print "Certified luminosity new runs: %2.2f /pb" % (ll_nr/1e+6)
-    print "Rejected  luminosity new runs: %2.2f /pb" % ((ll_rec_nr-ll_nr)/1e+6)
-    print "Efficiency of certified luminosity new runs: %2.2f%%" % (100.*ll_nr/ll_rec_nr)
+    print "Delivered luminosity: %2.8f /pb" % (ll_deliv/1e+6)
+    print "Recorded  luminosity: %2.8f /pb" % (ll_rec/1e+6)
+    print "Certified luminosity: %2.8f /pb" % (ll/1e+6)
+    print "Rejected  luminosity: %2.8f /pb" % ((ll_rec-ll)/1e+6)
+    print "Efficiency of certified luminosity: %2.8f%%" % (100.*ll/ll_rec)
+    print "Delivered luminosity last week: %2.8f /pb" % (ll_deliv_lw/1e+6)
+    print "Recorded  luminosity last week: %2.8f /pb" % (ll_rec_lw/1e+6)
+    print "Certified luminosity last week: %2.8f /pb" % (ll_lw/1e+6)
+    print "Rejected  luminosity last week: %2.8f /pb" % ((ll_rec_lw-ll_lw)/1e+6)
+    print "Efficiency of certified luminosity last week: %2.8f%%" % (100.*ll_lw/ll_rec_lw)
+    print "Delivered luminosity new runs: %2.8f /pb" % (ll_deliv_nr/1e+6)
+    print "Recorded  luminosity new runs: %2.8f /pb" % (ll_rec_nr/1e+6)
+    print "Certified luminosity new runs: %2.8f /pb" % (ll_nr/1e+6)
+    print "Rejected  luminosity new runs: %2.8f /pb" % ((ll_rec_nr-ll_nr)/1e+6)
+    print "Efficiency of certified luminosity new runs: %2.8f%%" % (100.*ll_nr/ll_rec_nr)
 
     TOTLUMIACC[cur]=ll
     TOTLUMI[cur]=ll_rec
@@ -772,19 +773,19 @@ def makeplot(cur):
                     legendtext = ""
                     if "lastweek" in p_xrange:
                         legendtext   ="Last week"
-                        lumitext     +="%2.2f pb^{-1}" % (TOTLUMI_LW[cur]/1e+6)
-                        lumiacctext  +="%2.2f pb^{-1}" % (TOTLUMIACC_LW[cur]/1e+6)
-                        lumidelivtext+="%2.2f pb^{-1}" % (TOTLUMIDELIV_LW[cur]/1e+6)
+                        lumitext     +="%2.8f pb^{-1}" % (TOTLUMI_LW[cur]/1e+6)
+                        lumiacctext  +="%2.8f pb^{-1}" % (TOTLUMIACC_LW[cur]/1e+6)
+                        lumidelivtext+="%2.8f pb^{-1}" % (TOTLUMIDELIV_LW[cur]/1e+6)
                     elif "new" in p_xrange:
                         legendtext   ="New runs"
-                        lumitext     +="%2.2f pb-1" % (TOTLUMI_NR[cur]/1e+6)
-                        lumiacctext  +="%2.2f pb-1" % (TOTLUMIACC_NR[cur]/1e+6)
-                        lumidelivtext+="%2.2f pb-1" % (TOTLUMIDELIV_NR[cur]/1e+6)
+                        lumitext     +="%2.8f pb-1" % (TOTLUMI_NR[cur]/1e+6)
+                        lumiacctext  +="%2.8f pb-1" % (TOTLUMIACC_NR[cur]/1e+6)
+                        lumidelivtext+="%2.8f pb-1" % (TOTLUMIDELIV_NR[cur]/1e+6)
                     elif "tot" in p_xrange:
                         legendtext   ="All runs"
-                        lumitext     +="%2.2f pb^{-1}" % (TOTLUMI[cur]/1e+6)
-                        lumiacctext  +="%2.2f pb^{-1}" % (TOTLUMIACC[cur]/1e+6)
-                        lumidelivtext+="%2.2f pb^{-1}" % (TOTLUMIDELIV[cur]/1e+6)
+                        lumitext     +="%2.8f pb^{-1}" % (TOTLUMI[cur]/1e+6)
+                        lumiacctext  +="%2.8f pb^{-1}" % (TOTLUMIACC[cur]/1e+6)
+                        lumidelivtext+="%2.8f pb^{-1}" % (TOTLUMIDELIV[cur]/1e+6)
 
                     xcoord = 0.15
                     ycoord = 0.82
@@ -981,7 +982,7 @@ def makesummaryplot():
     tex1.SetLineWidth(2)
     tex1.Draw()
 
-    lumitext ="Recorded integrated luminosity: %2.2f pb^{-1}"%(TOTLUMI[0]/1e+6)
+    lumitext ="Recorded integrated luminosity: %2.8f pb^{-1}"%(TOTLUMI[0]/1e+6)
     ycoord -= 0.03
     tex1a = TLatex(xcoord,ycoord,lumitext)
     tex1a.SetNDC(kTRUE)
@@ -1013,7 +1014,7 @@ def makesummaryplot():
     tex2.SetLineWidth(2)
     tex2.Draw()
 
-    lumitext ="Recorded integrated luminosity: %2.2f pb^{-1}" % (TOTLUMI_LW[0]/1e+6)
+    lumitext ="Recorded integrated luminosity: %2.8f pb^{-1}" % (TOTLUMI_LW[0]/1e+6)
     ycoord -= 0.03
     tex2a = TLatex(xcoord,ycoord,lumitext)
     tex2a.SetNDC(kTRUE)
@@ -1045,7 +1046,7 @@ def makesummaryplot():
     tex3.SetLineWidth(2)
     tex3.Draw()
 
-    lumitext ="Recorded integrated luminosity: %2.2f pb^{-1}" % (TOTLUMI_NR[0]/1000000.)
+    lumitext ="Recorded integrated luminosity: %2.8f pb^{-1}" % (TOTLUMI_NR[0]/1000000.)
     ycoord -= 0.03
     tex3a = TLatex(xcoord,ycoord,lumitext)
     tex3a.SetNDC(kTRUE)

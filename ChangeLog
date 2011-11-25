@@ -1,3 +1,12 @@
+2011-11-25  Marco Rovere  <marco.rovere@cern.ch>
+
+	* lumi_web.py: Fixed a problem in getting the correct luminosity
+	in overview mode related to a missing string to float conversion
+	while parsing nano and microbarn results from the lumicalc script.
+	Increased the number of significant digits reported in the output
+	2 to 8 to properly handle also the smaller luminosities we have in
+	Heavy Ion running conditions.
+
 2011-11-09  Marco Rovere  <marco.rovere@cern.ch>
 
 	* getLumiLoss.py, lumi_web.py, analoss.py, runregparse.py: Initial
