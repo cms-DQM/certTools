@@ -1,3 +1,13 @@
+2011-12-01  Luca Malgeri  <Luca.Malgeri@cern.ch>
+	* lumi_web.py: 
+	- use fixed /ub output in lumiCalc2 (with -o option)
+	- fixed beam energy bugs when energy is not "integer"
+	- keep track of holes in run ranges, produce the lumicache file 
+	for the full range, but use in recorded and delivered only runs in
+	COMPLETED mode. A warning is issued in case holes are found so to be
+	traced.
+	
+
 2011-11-25  Marco Rovere  <marco.rovere@cern.ch>
 
 	* lumi_web.py: Fixed a problem in getting the correct luminosity

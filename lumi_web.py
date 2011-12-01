@@ -91,6 +91,8 @@ NEW_DATASET_ALL=""
 
 DEF_QF=''
 DEF_DCS=''
+
+RUN_TIME_ALL={}
 RUN_TIME={}
 RUN_TIME_00={}
 
@@ -224,9 +226,9 @@ def readlumi():
 
 def readlumi_db():
     global lumi,lumi_deliv,lumi_deliv_ov,LUMI_RESET,LUMI_CACHE
-    global RUN_TIME
+    global RUN_TIME_ALL
 
-    runlist=RUN_TIME.keys()
+    runlist=RUN_TIME_ALL.keys()
     runlist.sort()
 
     runmaxincache=-1
@@ -267,7 +269,7 @@ def readlumi_db():
         if runno.isdigit():
             # check if the runno is inside 2 days of last run in cache
             if not LUMI_RESET and runmaxincache!=-1:
-                if RUN_TIME[runno]<(RUN_TIME[str(runmaxincache)]-86400*2):
+                if RUN_TIME_ALL[runno]<(RUN_TIME_ALL[str(runmaxincache)]-86400*2):
                     continue
 
             # otherwise make the query
@@ -276,62 +278,77 @@ def readlumi_db():
                 # if using stable beam mode, please consider that the flag is only set for run>=132716
                 # the lumi between run 132440 and 132716 is totally negligible: 0.1 nb-1
 #                lumitable=commands.getoutput("lumiCalc.py  -c frontier://LumiProd/CMS_LUMI_PROD lumibyls -r "+runno)
-                lumitable=commands.getoutput("lumiCalc2.py  -c frontier://LumiProd/CMS_LUMI_PROD lumibyls -r "+runno+" -b stable")
-                lumitable_overview=commands.getoutput("lumiCalc2.py  -c frontier://LumiProd/CMS_LUMI_PROD overview -r "+runno+" -b stable")
+                lumitable=commands.getoutput("lumiCalc2.py  -c frontier://LumiProd/CMS_LUMI_PROD lumibyls -r "+runno+" -b stable -o stdout")
+                lumitable_overview=commands.getoutput("lumiCalc2.py  -c frontier://LumiProd/CMS_LUMI_PROD overview -r "+runno+" -b stable -o stdout")
+
+#                print lumitable
+#                print lumitable_overview
+                
             except:
                 print "Problem in accessing lumidb for run:"+runno
 
             tmplumi_deliv=0.
             for line in lumitable_overview.split("\n"):
+                if 'Run' in line:
+                    continue
+                try:
+                    thelist=eval(line)
+                except:
+                    print "ERROR: something wrong in lumicalc overview line, skipping it:"
+                    print line
+                    continue
+                
+                if len(thelist)==5 and thelist[0]==int(runno):
+                    tmplumi_deliv=thelist[2]
+                else:
+                    print "ERROR: something wrong in lumicalc overview line, skipping it:"
+                    print line
+                    continue
             
-                column=line.split('|')
-                
-                
-                if len(column)==7:
-                    if column[1].strip().isdigit():
-                        if int(column[1])==int(runno):
-                            try:
-                                
-                                if '(/pb)' in column[3]:
-                                    str_ls=column[3].split('(/pb)')
-                                    float_ls=float(str_ls[0])
-                                if '(/nb)' in column[3]:
-                                    str_ls=column[3].split('(/nb)')
-                                    float_ls=float(str_ls[0])/1e03
-                                if '(/ub)' in column[3]:
-                                    str_ls=column[3].split('(/ub)')
-                                    float_ls=float(str_ls[0])/1e06
-                                
-                                tmplumi_deliv=float_ls*1e06
-                                
-                            except:
-                                tmplumi_deliv=0.
-                                
-           
             firstls=True
-#            nostablebeam=True
             for line in lumitable.split("\n"):
-                column=line.split('|')
-                if len(column)==9:
-                  
-                    if column[1].strip().isdigit():
-                        if int(column[1])==int(runno):
-                            nostablebeam=False
-                            str_ls=column[2].split(':')
-                            kw="%d_%d" % (int(column[1]),int(str_ls[0]))
-                           
-                            lumi[kw]=float(column[7])
-                                                       
-                            lumi_deliv[kw]=float(column[6])
+                if 'Run' in line:
+                    continue
+
+                try:
+                    thelist=eval(line)
+                except:
+                    print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
+                    print line
+                    continue
+                if len(thelist)==7:
+                    # sanity checks
+                    lsrange=thelist[1].split(":")
+                    try:
+                        this_run=thelist[0]
+                        this_ls=int(lsrange[0])
+                        this_recorded=float(thelist[6])
+                        this_delivered=float(thelist[5])
+                    except:
+                        print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
+                        print line
+                        continue
+                        
+                    if thelist[0]!=int(runno):
+                        print "ERROR: wrong run in lumi output, skipping this line"
+                        
+                    # run_ls
+                    kw="%d_%d" % (thelist[0],int(lsrange[0]))
+                    lumi[kw]=thelist[6]
+                    lumi_deliv[kw]=thelist[5]
                             
-                            if firstls:
-                              
-                                lumi_deliv_ov[kw]=tmplumi_deliv
-                               
-                                firstls=False
-                               
-                            else:
-                                lumi_deliv_ov[kw]=0.
+                    if firstls:
+                        lumi_deliv_ov[kw]=tmplumi_deliv
+                        firstls=False
+                    else:
+                        lumi_deliv_ov[kw]=0.
+                                
+                else:
+                    print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
+                    print line
+                    continue
+                
+
                         
 #            if nostablebeam:
 #                kw="%d_%d" % (int(runno),-1)
@@ -438,6 +455,7 @@ def makeplot(cur):
     tot_deliv_lw=1e-30
     tot_deliv_nr=1e-30
 
+
     # determine run boundary for "last week" run
     lastrun_time=RUN_TIME[str(RUNMAX)]
 
@@ -464,8 +482,6 @@ def makeplot(cur):
 #    	if int(str_run)>=RUNMIN and int(str_run)<=RUNMAX and str_run in json_ref.keys():
     	if int(str_run)>=RUNMIN and int(str_run)<=RUNMAX and str_run in RUN_TIME.keys():
     		tot_rec+=lumi[l]
-#    		tot_deliv+=lumi_deliv[l]
-
     		tot_deliv+=lumi_deliv_ov[l]
               
                 if RUN_TIME[str_run]>(lastrun_time-86400*7):
@@ -1068,7 +1084,7 @@ def makesummaryplot():
 def looponscenario():
     global TIME_DAYBOUND_MAX,TIME_DAYBOUND_MIN
     global JSONLIST
-    global RUN_DATA,RUN_TIME
+    global RUN_DATA,RUN_TIME,RUN_TIME_ALL
     global CERT_DIR
     global KEEPRUNRANGE
     global RUNMINCFG,RUNMAXCFG
@@ -1124,13 +1140,23 @@ def looponscenario():
     sel_runtable="{groupName} = 'Collisions11' and {datasetName} LIKE '%Prompt%'  and {bfield}>3.7 and {runNumber} >= "+RUNMINCFG+" and {runNumber} <= "+RUNMAXCFG
 
     # NEW CKR 10.10.2011:
-    #sel_runtable="{groupName} = 'Collisions11' and {datasetName} LIKE '%Prompt%' and {datasetState} = 'COMPLETED' and {bfield}>3.7 and {runNumber} >= "+RUNMINCFG+" and {runNumber} <= "+RUNMAXCFG
+    sel_runtable_comp="{groupName} = 'Collisions11' and {datasetName} LIKE '%Prompt%' and {datasetState} = 'COMPLETED' and {bfield}>3.7 and {runNumber} >= "+RUNMINCFG+" and {runNumber} <= "+RUNMAXCFG
 
 
     RUN_DATA= server.DataExporter.export('RUN', 'GLOBAL', 'csv_runs', sel_runtable)
+    RUN_DATA_COMP= server.DataExporter.export('RUN', 'GLOBAL', 'csv_runs', sel_runtable_comp)
 
     BEAM_ENE_ALL=[450.0,1380.0,3500.0]
     BEAM_ENE_DEF=3500.0
+
+
+    RUNLIST_COMP=[]
+    for line in RUN_DATA_COMP.split("\n"):
+        runno=line.split(',')[0]        
+        if runno.isdigit():
+            RUNLIST_COMP.append(runno)
+
+    RUNLIST_NOCOMP=[]
 
     for line in RUN_DATA.split("\n"):
         
@@ -1140,11 +1166,16 @@ def looponscenario():
             # we need to do something to avoid parsing commas in comment column
             group=line.split('",')[8]
             energy=group.split(',')[0]
+
             mindiff=999999.
-            if energy.isdigit():
+            try:
+                float(energy)
                 for be in BEAM_ENE_ALL:
                     if abs(float(energy)-be)<mindiff:
                         mindiff=abs(float(energy)-be)
+            except:
+                mindiff=999999.
+                
             if mindiff>400.0:
                 print "WARNING: Something wrong with energies in run "+runno
                 print "WARNING: Getting: "+energy+" from RR.Using default value of:"+str(BEAM_ENE_DEF)
@@ -1161,9 +1192,21 @@ def looponscenario():
             day_bound_min=time.mktime(time.strptime(day_bound+'T00:00:00"','"%Y-%m-%dT%H:%M:%S"'))
             day_bound_max=time.mktime(time.strptime(day_bound+'T23:59:59"','"%Y-%m-%dT%H:%M:%S"'))
 
-            RUN_TIME_00[runno]=day_bound_min
-            RUN_TIME[runno]=timeinsec
+            RUN_TIME_ALL[runno]=timeinsec
+            if runno in RUNLIST_COMP:
+                # select only those in completed status
+                RUN_TIME_00[runno]=day_bound_min
+                RUN_TIME[runno]=timeinsec
+            else:
+                RUNLIST_NOCOMP.append(runno)
 
+    # if runs not in COMPLETED status are found, report them here
+    if len(RUNLIST_NOCOMP)!=0:
+        print "WARNING: there are runs in the specified run range not in COMPLETED status:"
+        print "WARNING: the runs below are NOT considered in the recorded and delivered lumi calculations"
+        print RUNLIST_NOCOMP
+        
+                
 
 def definetemplates():
     global MAINPAGE_TEMPL,SCENARIO_TEMPL,SCENARIOLINE_TEMPL,PLOT_TEMPL
@@ -1520,6 +1563,7 @@ def main():
 
 
     # first loop on all scenarios
+
     looponscenario()
 
     # then read the run/lumi
