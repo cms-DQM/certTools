@@ -3,8 +3,8 @@
 # 
 #
 # $Author: borrell $
-# $Date: 2012/04/12 14:45:27 $
-# $Revision: 1.1 $
+# $Date: 2012/04/18 14:31:46 $
+# $Revision: 1.2 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -31,7 +31,6 @@ class Certifier():
         self.readConfig()
         
     def readConfig(self):
-            # reading config file
         CONFIG = ConfigParser.ConfigParser()
         if self.verbose:
             print 'Reading configuration file from %s' % self.cfg
@@ -44,9 +43,7 @@ class Certifier():
         self.runmax  = CONFIG.get('Common','RUNMAX')
         self.qflist  = CONFIG.get('Common','QFLAGS').split(',')
         self.bfield  = CONFIG.get('Common','BFIELD_THR')
-#        self.lsparse = CONFIG.get('Common','LSCOMMENT')  # LS comment not used in RR3: replaced by status
         self.dcslist = CONFIG.get('Common','DCS').split(',')
-#        self.dcslist = string.split(DCSSTAT,',')
         self.jsonfile = CONFIG.get('Common','JSONFILE')
         self.beamene     = []
         self.dbs_pds_all = ""
@@ -96,11 +93,9 @@ class Certifier():
 
         for qf in self.qflist:
             (sys,value) = qf.split(':')
-            print qf
+            if self.verbose: print qf
             if sys != "NONE":
-                # query over datasetlumis for LS exceptions
                 self.filter.setdefault(sys.lower()+"Status", self.qry[value])
-                # query over dataset for overall quality
                 if sys.lower() != 'lumi' and sys.lower() != 'track':
                     self.filter.setdefault("dataset", {})\
                                                       .setdefault("filter", {})\
@@ -109,7 +104,7 @@ class Certifier():
 
         for dcs in self.dcslist:
             self.filter.setdefault(dcs.lower()+"Ready", "isNull OR  = true")
-            print dcs
+            if self.verbose: print dcs
             
         if self.online:
             self.filter.setdefault("dataset", {})\
@@ -137,34 +132,23 @@ class Certifier():
                                           .setdefault("filter",{})\
                                           .setdefault("bfield", "> %.1f" % self.bfield)
         self.filter.setdefault("cmsActive", "isNull OR = true")
-
-## add dataset state, COMPLETED
         if len(self.dsstate):
             self.filter.setdefault("dataset", {})\
                                           .setdefault("filter", {})\
                                           .setdefault("datasetState", " = %s"  % self.dsstate)
-##
-
         if len(self.beamene):
 
-            # Hard coding 0 here to recover the cases in which the LHC
-            # Energy information did not make it correctly in RR3
-            # DB. There should be no cases in which we have a
-            # collision run with beam energy = 0.
-            
             eneQuery = '{lhcEnergy} IS NULL OR {lhcEnergy} = 0 '
             for e in self.beamene:
-                energyLow = e - 400 # set lower bound as done in runregparse.py
+                energyLow = e - 400 
                 if energyLow < 0:
                     energyLow = 0
-                energyHigh = e + 400 # set upper bound
+                energyHigh = e + 400 
                 eneQuery += 'OR ( {lhcEnergy} >= %.1d AND {lhcEnergy} <= %.1d) ' % (energyLow, energyHigh)
             self.filter.setdefault("dataset", {})\
                                               .setdefault("filter", {})\
                                               .setdefault("run", {})\
                                               .setdefault("query", eneQuery)
-                                              #.setdefault("filter",{})\
-                                              #.setdefault("lhcEnergy",  "  >= %.1d AND <= %.1d OR isNull" %(self.energyLow, self.energyHigh))
         
         if self.verbose:
             print json.dumps(self.filter)
@@ -191,8 +175,8 @@ class Certifier():
                 combined=[]
                 dbsbad_int=invert_intervals(self.cert_old_json[element])
                 if self.verbose:
-                    print " debug: Good Lumi ", self.cert_old_json[element] ## inverted = bad LSs
-                    print " debug:  Bad Lumi ", dbsbad_int ## inverted = bad LSs
+                    print " debug: Good Lumi ", self.cert_old_json[element] 
+                    print " debug:  Bad Lumi ", dbsbad_int 
                 for interval in  dbsbad_int:
                     combined.append(interval)
                 
@@ -201,15 +185,15 @@ class Certifier():
                         print " debug: Found in DBS, Run ", element, ", Lumi ", dbsjson[element]
                     dbsbad_int=invert_intervals(dbsjson[element])
                     if self.verbose:
-                        print " debug DBS: Bad Lumi ", dbsbad_int ## inverted = bad LSs
+                        print " debug DBS: Bad Lumi ", dbsbad_int 
                 else:
                     dbsbad_int=[[1,9999]]
                 for interval in  dbsbad_int:
                     combined.append(interval)
                 combined=merge_intervals(combined)
-                combined=invert_intervals(combined) ## now good intervals
+                combined=invert_intervals(combined) 
                 if len(combined)!=0:
-                    self.cert_old_json[element]=combined ## now it should be good again
+                    self.cert_old_json[element]=combined 
 
         if self.verbose:
             print json.dumps(self.cert_old_json)
@@ -245,16 +229,13 @@ class Certifier():
             print "Json file: %s written.\n" % self.jsonfile
         
 
-# copied from older one
 def invert_intervals(intervals,min_val=1,max_val=9999):
-    # first order and merge in case
     if not intervals:
         return []
     intervals=merge_intervals(intervals)
     intervals = sorted(intervals, key = lambda x: x[0])
     result = []
     if min_val==-1:
-        # defin min and max
         (a,b)=intervals[0]
         min_val=a
     if max_val==-1:
@@ -269,10 +250,8 @@ def invert_intervals(intervals,min_val=1,max_val=9999):
     if curr_min<max_val:
         result.append((curr_min,max_val))
 
-#    print min_val,max_val
     return result
 
-# copied from older one
 def merge_intervals(intervals):
     if not intervals:
         return []
@@ -288,35 +267,28 @@ def merge_intervals(intervals):
     result.append((a, b))
     return result
 
-# version modified for LS merging (not called in invert_interval)
 def merge_intervals2(intervals):
     if not intervals:
         return []
     intervals = sorted(intervals, key = lambda x: x[0])
     result = []
     (a, b) = intervals[0]
-#    print "A = ", a, ", B = ", b
     for (x, y) in intervals[1:]:
-#        print "X = ", x, " and Y = ", y
-        if x <= b+1:     ########## Scary change!!!
+        if x <= b+1:    
             b = max(b, y)
         else:
             result.append((a, b))
             (a, b) = (x, y)
     result.append((a, b))
-#    print "Result of merging ", result
     return result
 
-# convenient helper function to get lumi sections from DBS. 
-# DBS command-line service is assumed to be maintained.
 def get_dbsjson(datasets, runmin, runmax):
     unsorted={}
 
     for ds in  datasets.split(","):
         command='dbs search --query="find run,lumi where dataset=%s and run >=%s  and run<=%s"' % (ds, runmin, runmax)
-        print command
         (status, out) = commands.getstatusoutput(command)
-        if status:    ## Error case, print the command's output to stderr and exit
+        if status: 
             sys.stderr.write(out)
             print "\nERROR on dbs command: %s\nHave you done cmsenv?" % command
             sys.exit(1)
@@ -347,7 +319,6 @@ def get_dbsjson(datasets, runmin, runmax):
         lastlumi=lumilist[0]
         for lumi in lumilist[1:]:
             if lumi>lastlumi+1:
-                # close last range, append and open new range
                 lumirange.append(lastlumi)
                 lumiranges.append(lumirange)
                 lumirange=[]
@@ -360,7 +331,6 @@ def get_dbsjson(datasets, runmin, runmax):
 
     return dbsjson
 
-# main 
 if __name__ == '__main__':
     cert = Certifier(sys.argv, verbose=False)
     cert.generateFilter()
