@@ -2,9 +2,9 @@
 ################################################################################
 # 
 #
-# $Author: rovere $
-# $Date: 2011/07/14 11:11:03 $
-# $Revision: 1.5 $
+# $Author: borrell $
+# $Date: 2012/04/12 14:45:27 $
+# $Revision: 1.1 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -52,6 +52,7 @@ class Certifier():
         self.dbs_pds_all = ""
         self.online_cfg  = "FALSE"
         self.usedbs = False
+        self.dsstate = ""
 
         for item in cfglist:
             if "BEAM_ENE" in item[0].upper():
@@ -61,6 +62,8 @@ class Certifier():
                 self.usedbs = True
             if "ONLINE" in item[0].upper():
                 self.online_cfg = item[1]
+            if "DSSTATE" in item[0].upper():
+                self.dsstate = item[1]
                 
         self.dbs_pds = self.dbs_pds_all.split(",")
 
@@ -80,7 +83,7 @@ class Certifier():
             try:
                 self.beamene[e] = float(self.beamene[e])
                 if self.verbose:
-                    print self.beamene
+                    print "Beam Energy ", self.beamene
             except:
                 print "BEAMENE value not understood: ", self.beamene
                 sys.exit(1)
@@ -93,6 +96,7 @@ class Certifier():
 
         for qf in self.qflist:
             (sys,value) = qf.split(':')
+            print qf
             if sys != "NONE":
                 # query over datasetlumis for LS exceptions
                 self.filter.setdefault(sys.lower()+"Status", self.qry[value])
@@ -105,7 +109,8 @@ class Certifier():
 
         for dcs in self.dcslist:
             self.filter.setdefault(dcs.lower()+"Ready", "isNull OR  = true")
-
+            print dcs
+            
         if self.online:
             self.filter.setdefault("dataset", {})\
                                               .setdefault("filter", {})\
@@ -133,6 +138,12 @@ class Certifier():
                                           .setdefault("bfield", "> %.1f" % self.bfield)
         self.filter.setdefault("cmsActive", "isNull OR = true")
 
+## add dataset state, COMPLETED
+        if len(self.dsstate):
+            self.filter.setdefault("dataset", {})\
+                                          .setdefault("filter", {})\
+                                          .setdefault("datasetState", " = %s"  % self.dsstate)
+##
 
         if len(self.beamene):
 
@@ -214,13 +225,15 @@ class Certifier():
              if self.verbose:
                  print " debug: Run ", runNum, " Lumi ", lumiStart, ", ", lumiEnd
              old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
-             print old_json[str(runNum)]
+             if self.verbose:
+                 print old_json[str(runNum)]
         for block in old_json:
             temp = []
             temp = merge_intervals2(old_json[block])
             self.cert_old_json.setdefault(block, temp)
-            print "Merging Done on Run ", block,
-            print " Interval ", temp 
+            if self.verbose:
+                print "Merging Done on Run ", block,
+                print " Interval ", temp 
 
     def writeJson(self):
         js = open(self.jsonfile, 'w+')
@@ -291,7 +304,7 @@ def merge_intervals2(intervals):
             result.append((a, b))
             (a, b) = (x, y)
     result.append((a, b))
-    print "Result of merging ", result
+#    print "Result of merging ", result
     return result
 
 # convenient helper function to get lumi sections from DBS. 
@@ -349,7 +362,7 @@ def get_dbsjson(datasets, runmin, runmax):
 
 # main 
 if __name__ == '__main__':
-    cert = Certifier(sys.argv, verbose=True)
+    cert = Certifier(sys.argv, verbose=False)
     cert.generateFilter()
     cert.generateJson()
     cert.writeJson()
