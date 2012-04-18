@@ -8,40 +8,40 @@ from array import array
 import json, csv
 import analoss
 
+from rrapi import RRApi, RRApiError
+
 SCENS=[
     ('DQM: all, DCS: all on','default','default'), 
     ('DQM: none, DCS: all on','NONE:NONE','default'),
     ('DQM: none, DCS: Strip on','NONE:NONE','Tibtid,TecM,TecP,Tob'),
     ('DQM: none, DCS: Pix on','NONE:NONE','Bpix,Fpix'),
-    ('DQM: none, DCS: Ecal on','NONE:NONE','Ebminus,Ebplus,EeMinus,EePlus'),
-    ('DQM: none, DCS: Es on','NONE:NONE','EsMinus,EsPlus'),
+    ('DQM: none, DCS: Ecal on','NONE:NONE','Ebm,Ebp,EeM,EeP'),
+    ('DQM: none, DCS: Es on','NONE:NONE','EsM,EsP'),
     ('DQM: none, DCS: HCAL on','NONE:NONE','HbheA,HbheB,HbheC,Hf'),
-    ('DQM: none, DCS: Dt on','NONE:NONE','Dtminus,Dtplus,Dt0'),
-    ('DQM: none, DCS: Csc on','NONE:NONE','CscMinus,CscPlus'),
+    ('DQM: none, DCS: Dt on','NONE:NONE','Dtm,Dtp,Dt0'),
+    ('DQM: none, DCS: Csc on','NONE:NONE','CscM,CscP'),
     ('DQM: none, DCS: Rpc on','NONE:NONE','Rpc'),
     ('DQM: Muon, DCS: none','Muon:GOOD','NONE'),
-    ('DQM: Jmet, DCS: none','Jmet:GOOD','NONE'),
-    ('DQM: Egam, DCS: none','Egam:GOOD','NONE'),
+    ('DQM: Jmet, DCS: none','Jetmet:GOOD','NONE'),
+    ('DQM: Egam, DCS: none','Egamma:GOOD','NONE'),
     ('DQM: Track, DCS: none','Track:GOOD','NONE'),
     ('DQM: Rpc, DCS: Rpc','Rpc:GOOD','Rpc'),
-    ('DQM: Csc, DCS: Csc','Csc:GOOD','CscMinus,CscPlus'),
-    ('DQM: Dt, DCS: Dt','Dt:GOOD','Dtminus,Dtplus,Dt0'),
+    ('DQM: Csc, DCS: Csc','Csc:GOOD','CscM,CscP'),
+    ('DQM: Dt, DCS: Dt','Dt:GOOD','Dtm,Dtp,Dt0'),
     ('DQM: Hcal, DCS: Hcal','Hcal:GOOD','HbheA,HbheB,HbheC,Hf'),
-    ('DQM: Ecal, DCS: Ecal','Ecal:GOOD','Ebminus,Ebplus,EeMinus,EePlus'),
-    ('DQM: Es, DCS: Es','Es:GOOD','EsMinus,EsPlus'),
+    ('DQM: Ecal, DCS: Ecal','Ecal:GOOD','Ebm,Ebp,EeM,EeP'),
+    ('DQM: Es, DCS: Es','Es:GOOD','EsM,EsP'),
     ('DQM: Strip, DCS: Strip','Strip:GOOD','Tibtid,TecM,TecP,Tob'),
     ('DQM: Pix, DCS: Pix','Pix:GOOD','Bpix,Fpix'),
     ('DQM: Hlt, DCS: none','Hlt:GOOD','NONE'),
     ('DQM: L1t, DCS: none','L1t:GOOD','NONE'),
     ('DQM: Lumi, DCS: none','Lumi:GOOD','NONE'),
-    ('DQM: e+trk, DCS: e+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Es:GOOD,Track:GOOD,Egam:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebminus,Ebplus,EeMinus,EePlus,EsMinus,EsPlus'),
-    ('DQM: cal+trk, DCS: cal+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Es:GOOD,Track:GOOD,Egam:GOOD,Jmet:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebminus,Ebplus,EeMinus,EePlus,EsMinus,EsPlus,HbheA,HbheB,HbheC,Hf'),
-    ('DQM: muon phys, DCS: muon phys','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Dt:GOOD,Rpc:GOOD,Csc:GOOD,Track:GOOD,Muon:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Dtminus,Dtplus,Dt0,CscMinus,CscPlus,Rpc'),
-    #####new scenario
+    ('DQM: e+trk, DCS: e+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP'),
+    ('DQM: cal+trk, DCS: cal+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Jmet:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP,HbheA,HbheB,HbheC,Hf'),
+    ('DQM: muon phys, DCS: muon phys','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Dt:GOOD,Rpc:GOOD,Csc:GOOD,Track:GOOD,Muon:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Dtm,Dtp,Dt0,CscM,CscP,Rpc'),
 
     
     ('DQM: 9 subsystem ON but NOT Hlt, DCS: default','L1t:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Dt:GOOD,Rpc:GOOD,Es:GOOD,Csc:GOOD','default'),
-
     ('DQM: 9 subsystem ON but NOT L1t, DCS: default','Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Dt:GOOD,Rpc:GOOD,Es:GOOD,Csc:GOOD','default'),
     
     ('DQM: 9 subsystem ON but NOT Pix, DCS: default','L1t:GOOD,Hlt:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Dt:GOOD,Rpc:GOOD,Es:GOOD,Csc:GOOD','default'),
@@ -61,21 +61,12 @@ SCENS=[
     ('DQM: 9 subsystem ON but NOT RPC, DCS: default','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Dt:GOOD,Es:GOOD,Csc:GOOD','default')
     ]
 
-
-# define relative losses as calculated from SCENS above
-# example [3,0] means that losses of scenario 3 are compared (subracted) from losses in scenario 0
 REL_LOSS=[[28,0],[29,0],[30,0],[31,0],[32,0],[33,0],[34,0],[35,0], [36,0], [37,0]]
-
 
 REL_LOSS_VAL=[]
 
-#parameters
-QF_ALL_SYS=["Muon","Jmet","Egam","Track","Rpc","Csc","Dt","Hcal","Ecal","Es","Strip","Pix","Hlt","L1t","Lumi"]
-DCS_ALL=['Bpix','Fpix','Tibtid','TecM','TecP','Tob','Ebminus','Ebplus','EeMinus','EePlus','EsMinus','EsPlus','HbheA','HbheB','HbheC','Hf','Dtminus','Dtplus','Dt0','CscMinus','CscPlus','Rpc','Castor',"NONE"]
-#QF_ALL_SYS=["Hcal","Track","Strip","Egam","Es","Dt","Csc","Pix","Muon","Rpc","Castor","Jmet","Ecal","L1t","Hlt"]
-
-# physics declared bit (~ stable beam) DCS equivalent
-#DCS_PDB='Bpix,Fpix,Tibtid,TecM,TecP,Tob'
+QF_ALL_SYS=["Muon","Jetmet","Egamma","Tracker","Rpc","Csc","Dt","Hcal","Ecal","Es","Strip","Pix","Hlt","L1t","Lumi"]
+DCS_ALL=['Bpix','Fpix','Tibtid','TecM','TecP','Tob','Ebm','Ebp','EeM','EeP','EsM','EsP','HbheA','HbheB','HbheC','Hf','Dtm','Dtp','Dt0','CscM','CscP','Rpc',"NONE"]
 
 HTMLDIR=""
 LUMICACHE=""
@@ -114,11 +105,9 @@ TOTLUMIDELIV_NR={}
 TOTLUMI_NR={}
 TOTLUMIACC_NR={}
 
-
 lumi_deliv={}
 lumi_deliv_ov={}
 lumi={}
-
 
 RUNMIN=0
 RUNMAX=0
@@ -132,6 +121,9 @@ plot_xtype=[]
 plot_xrange=[]
 
 ultimate_date=''
+
+verbosityLevel = False
+
 
 def produce_json(SC,QF,DCS):
     global KEEPRUNRANGE,NEW_DATASET_ALL
@@ -158,7 +150,6 @@ def produce_json(SC,QF,DCS):
     for DS in DATASETS:
         DS_TEMP=DS.split(":")
         if len(DS_TEMP)==2:
-            # it asks for a run range
             dsname=DS_TEMP[0]
             dsmin=DS_TEMP[1].split("-")[0]
             dsmax=DS_TEMP[1].split("-")[1]
@@ -166,7 +157,6 @@ def produce_json(SC,QF,DCS):
             DS_RUNMIN.append(dsmin)
             DS_RUNMAX.append(dsmax)
         elif len(DS_TEMP)==1:
-            # no run range given, take the one in cfg
             DS_LIST.append(DS)
             DS_RUNMIN.append(RUNMINCFG)
             DS_RUNMAX.append(RUNMAXCFG)
@@ -193,26 +183,25 @@ def produce_json(SC,QF,DCS):
 
     CURR_CFG_FP.close()
     LOGFILE="json_"+JSON_ADD+".log"
-    COMMAND="./runregparse.py "+CURR_CFG+" > "+LOGFILE
-    print "======================================================================================"
-    print "Producing scenario:",SC
-    print "            QFLAGS:",QF
-    print "               DCS:",DCS
-    print "              JSON:",JSON_OUT
-    print "           command:",COMMAND
-    print "======================================================================================"
+    COMMAND="python dataCert.py "+CURR_CFG+" > "+LOGFILE
+    if verbosityLevel:    
+        print "======================================================================================"
+        print "Producing scenario:",SC
+        print "            QFLAGS:",QF
+        print "               DCS:",DCS
+        print "              JSON:",JSON_OUT
+        print "           command:",COMMAND
+        print "======================================================================================"
     list=[QF,DCS,JSON_OUT]
     REPORT[SC]=list
     os.system(COMMAND)
     return JSON_OUT
 
-################################################################################
 def readlumi():
     global lumi,LUMI_CSV
     global TAG_NAME
 
     lumi_list_csv = open(LUMI_CSV,'rb')
-    # Skip first 5 lines, which are comments
     for i in range(5):
     	lumi_list_csv.next()
 
@@ -235,7 +224,7 @@ def readlumi_db():
     if not LUMI_RESET:
         if os.path.exists(LUMICACHE):
             
-            print "opening lumicache"
+            if verbosityLevel: print "opening lumicache"
             f=open(LUMICACHE,'r')
 
             for line in f:
@@ -253,37 +242,26 @@ def readlumi_db():
                             runmaxincache=int(runno)
             f.close()
         else:
-            print "Lumicache file not existing....recreating it from scratch"
+            if verbosityLevel: print "Lumicache file not existing....recreating it from scratch"
             LUMI_RESET=True
 
-    # RUN_TIME contains only the selected collisions10 runs (it may includes 900GeV data.... should be checked)
-    print "Maximum run number in local cache: ",runmaxincache
-
-
+    if verbosityLevel: print "Maximum run number in local cache: ",runmaxincache
 
     curr_time=time.time()
     
-    print runlist
+    if verbosityLevel: print runlist
     
     for runno in runlist:
         if runno.isdigit():
-            # check if the runno is inside 2 days of last run in cache
             if not LUMI_RESET and runmaxincache!=-1:
                 if RUN_TIME_ALL[runno]<(RUN_TIME_ALL[str(runmaxincache)]-86400*2):
                     continue
 
-            # otherwise make the query
             try:
-                print "Accessing LumiDB for run: "+runno
-                # if using stable beam mode, please consider that the flag is only set for run>=132716
-                # the lumi between run 132440 and 132716 is totally negligible: 0.1 nb-1
-#                lumitable=commands.getoutput("lumiCalc.py  -c frontier://LumiProd/CMS_LUMI_PROD lumibyls -r "+runno)
+                if verbosityLevel: print "Accessing LumiDB for run: "+runno
                 lumitable=commands.getoutput("lumiCalc2.py  -c frontier://LumiProd/CMS_LUMI_PROD lumibyls -r "+runno+" -b stable -o stdout")
                 lumitable_overview=commands.getoutput("lumiCalc2.py  -c frontier://LumiProd/CMS_LUMI_PROD overview -r "+runno+" -b stable -o stdout")
 
-#                print lumitable
-#                print lumitable_overview
-                
             except:
                 print "Problem in accessing lumidb for run:"+runno
 
@@ -297,8 +275,12 @@ def readlumi_db():
                     print "ERROR: something wrong in lumicalc overview line, skipping it:"
                     print line
                     continue
-                
-                if len(thelist)==5 and thelist[0]==int(runno):
+
+# it seems there is CMSSW version dependence in the output format of lumiCalc2.py
+# one case, 'run:fill', and another case, 'run' <-- be careful
+# remove these lines after syntronized
+                #if len(thelist)==5 and int(thelist[0].split(':')[0])==int(runno):
+                if len(thelist)==5 and int(thelist[0])==int(runno):
                     tmplumi_deliv=thelist[2]
                 else:
                     print "ERROR: something wrong in lumicalc overview line, skipping it:"
@@ -313,27 +295,31 @@ def readlumi_db():
                 try:
                     thelist=eval(line)
                 except:
-                    print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
-                    print line
-                    continue
-                if len(thelist)==7:
-                    # sanity checks
-                    lsrange=thelist[1].split(":")
-                    try:
-                        this_run=thelist[0]
-                        this_ls=int(lsrange[0])
-                        this_recorded=float(thelist[6])
-                        this_delivered=float(thelist[5])
-                    except:
+                    if verbosityLevel : 
                         print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
                         print line
-                        continue
-                        
-                    if thelist[0]!=int(runno):
+                    continue
+                if len(thelist)==7:
+                    lsrange=thelist[1].split(":")
+                    if str(thelist[6]).find("n/a") == -1:
+                        try:
+                            #this_run=thelist[0].split(":")[0]
+                            this_run=thelist[0]
+                            this_ls=int(lsrange[0])
+                            this_recorded=float(thelist[6])
+                            this_delivered=float(thelist[5])
+                        except:
+                            if verbosityLevel : 
+                                print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
+                                print line
+                                continue
+                    else: 
+                        if verbosityLevel: print "No recorded lumi from Lumi-DB"
+    
+                    if int(this_run)!=int(runno):
                         print "ERROR: wrong run in lumi output, skipping this line"
                         
-                    # run_ls
-                    kw="%d_%d" % (thelist[0],int(lsrange[0]))
+                    kw="%d_%d" % (int(this_run),int(lsrange[0]))
                     lumi[kw]=thelist[6]
                     lumi_deliv[kw]=thelist[5]
                             
@@ -344,17 +330,11 @@ def readlumi_db():
                         lumi_deliv_ov[kw]=0.
                                 
                 else:
-                    print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
-                    print line
-                    continue
+                    if verbosityLevel : 
+                        print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
+                        print line
+                        continue
                 
-
-                        
-#            if nostablebeam:
-#                kw="%d_%d" % (int(runno),-1)
- 
-                
-    # now need to write new lumicache
     keylist=lumi.keys()
     keylist.sort()
     f=open(LUMICACHE,'w')
@@ -379,15 +359,15 @@ def makeplot(cur):
     plot_xtype=['run','time']
     plot_xrange=['tot','lastweek','new']
 
-
-    print " "
-    print "Producing plot for scenario:",cur
-    print TAG_NAME[cur]
-
-    # use this for batch mode
+    gROOT.ProcessLine("gErrorIgnoreLevel = 5000;")
+    if verbosityLevel: 
+        print " "
+        print "Producing plot for scenario:",cur
+        print TAG_NAME[cur]
+        gROOT.ProcessLine("gErrorIgnoreLevel = 1000;")
     gROOT.SetBatch(True)
 
-    repref=REPORT[len(JSONLIST)-1] # always use PBD as reference
+    repref=REPORT[len(JSONLIST)-1] 
     repcur=REPORT[cur]
 
     lumi_json_ref=file(repref[2],'r')
@@ -396,7 +376,6 @@ def makeplot(cur):
     my_lumi_json=file(repcur[2],'r')
     my_lumi_dict = json.load(my_lumi_json)
 
-    # determine runmin and runmax
     RUNMIN_JSON=999999
     RUNMAX_JSON=0
     for run in my_lumi_dict.keys():
@@ -404,9 +383,8 @@ def makeplot(cur):
     		RUNMAX_JSON=int(run)
     	if int(run)<RUNMIN_JSON:
     		RUNMIN_JSON=int(run)
-    print "Run Range in JSON file:",RUNMIN_JSON,"-",RUNMAX_JSON
+    if verbosityLevel: print "Run Range in JSON file:",RUNMIN_JSON,"-",RUNMAX_JSON
 
-    # determine runmin and runmax in RR
     RUNMIN=999999
     RUNMAX=0
 
@@ -414,7 +392,7 @@ def makeplot(cur):
     runlist_rr.sort()
     RUNMIN=int(runlist_rr[0])
     RUNMAX=int(runlist_rr[len(runlist_rr)-1])
-    print "Run Range in Run Registry:",RUNMIN,"-",RUNMAX
+    if verbosityLevel: print "Run Range in Run Registry:",RUNMIN,"-",RUNMAX
 
 
     RUNMIN_LUMI=999999
@@ -430,19 +408,18 @@ def makeplot(cur):
             RUNMIN_LUMI=curr_run
         if curr_run>RUNMAX_LUMI:
             RUNMAX_LUMI=curr_run
-    print "Run Range in LUMI file:",RUNMIN_LUMI,"-",RUNMAX_LUMI
+    if verbosityLevel: print "Run Range in LUMI file:",RUNMIN_LUMI,"-",RUNMAX_LUMI
 
     if RUNMIN_LUMI>RUNMIN:
-        print "WARNING!: min run number in lumi file is BIGGER than min run number in RR"
-        print "WARNING!: setting RUNMIN to the one from lumi file:",RUNMIN_LUMI
+        if verbosityLevel: 
+            print "WARNING!: min run number in lumi file is BIGGER than min run number in RR"
+            print "WARNING!: setting RUNMIN to the one from lumi file:",RUNMIN_LUMI
         RUNMIN=RUNMIN_LUMI
     if RUNMAX_LUMI<RUNMAX:
-        print "WARNING!: max run number in lumi file is SMALLER than max run number in RR"
-        print "WARNING!: setting RUNMAX to the one from lumi file:",RUNMAX_LUMI
+        if verbosityLevel: 
+            print "WARNING!: max run number in lumi file is SMALLER than max run number in RR"
+            print "WARNING!: setting RUNMAX to the one from lumi file:",RUNMAX_LUMI
         RUNMAX=RUNMAX_LUMI
-
-
-
 
     delivlumiinrun={}
     reclumiinrun={}
@@ -455,10 +432,7 @@ def makeplot(cur):
     tot_deliv_lw=1e-30
     tot_deliv_nr=1e-30
 
-
-    # determine run boundary for "last week" run
     lastrun_time=RUN_TIME[str(RUNMAX)]
-
 
     coeff=4.29e28
     if LUMI_CSV=='none':
@@ -467,10 +441,6 @@ def makeplot(cur):
     firstrun_lw=999999
     firstrun_nr=999999
 
-
-
-    # builds up recorded lumi in base runlist (i.e. no good run selection but just runs with stable beam)
-   
     for l in lumi:
         str_run=l.split('_')[0]
         str_run=str_run.strip()
@@ -478,15 +448,12 @@ def makeplot(cur):
         str_ls=str_ls.strip()
         curr_run=int(str_run)
         
-        # checks as well that the run is in the reference json to exclude bad runs (wrong energy, no collisions, etc.)
-#    	if int(str_run)>=RUNMIN and int(str_run)<=RUNMAX and str_run in json_ref.keys():
     	if int(str_run)>=RUNMIN and int(str_run)<=RUNMAX and str_run in RUN_TIME.keys():
     		tot_rec+=lumi[l]
     		tot_deliv+=lumi_deliv_ov[l]
               
                 if RUN_TIME[str_run]>(lastrun_time-86400*7):
                     tot_rec_lw+=lumi[l]
-#                    tot_deliv_lw+=lumi_deliv[l]
                   
                     tot_deliv_lw+=lumi_deliv_ov[l]
                     
@@ -495,25 +462,21 @@ def makeplot(cur):
                         firstrun_lw=int(str_run)
                 if int(str_run)>=int(RUNNEWCFG):
                     tot_rec_nr+=lumi[l]
-#                    tot_deliv_nr+=lumi_deliv[l]
                     tot_deliv_nr+=lumi_deliv_ov[l]
                     if int(str_run)<firstrun_nr:
                         firstrun_nr=int(str_run)
 
     		if str_run in reclumiinrun.keys():
     			reclumiinrun[str_run]+=lumi[l]/coeff/1e+6
-#    			delivlumiinrun[str_run]+=lumi_deliv[l]/coeff/1e+6
     			delivlumiinrun[str_run]+=lumi_deliv_ov[l]/coeff/1e+6
     		else:
     			reclumiinrun[str_run]=lumi[l]/coeff/1e+6
-#    			delivlumiinrun[str_run]=lumi_deliv[l]/coeff/1e+6
     			delivlumiinrun[str_run]=lumi_deliv_ov[l]/coeff/1e+6
 
     tot=1e-30
     tot_lw=1e-30
     tot_nr=1e-30
 
-    # builds up accepted lumi in good runs
     for k, v in my_lumi_dict.items():
       for lumis in v:
         if type(lumis) == type([]) and len(lumis) == 2:
@@ -543,22 +506,23 @@ def makeplot(cur):
     ll_rec_nr = tot_rec_nr/coeff
     ll_deliv_nr = tot_deliv_nr/coeff
 
-    print "In the run range:",RUNMIN,"-",RUNMAX
-    print "Delivered luminosity: %2.8f /pb" % (ll_deliv/1e+6)
-    print "Recorded  luminosity: %2.8f /pb" % (ll_rec/1e+6)
-    print "Certified luminosity: %2.8f /pb" % (ll/1e+6)
-    print "Rejected  luminosity: %2.8f /pb" % ((ll_rec-ll)/1e+6)
-    print "Efficiency of certified luminosity: %2.8f%%" % (100.*ll/ll_rec)
-    print "Delivered luminosity last week: %2.8f /pb" % (ll_deliv_lw/1e+6)
-    print "Recorded  luminosity last week: %2.8f /pb" % (ll_rec_lw/1e+6)
-    print "Certified luminosity last week: %2.8f /pb" % (ll_lw/1e+6)
-    print "Rejected  luminosity last week: %2.8f /pb" % ((ll_rec_lw-ll_lw)/1e+6)
-    print "Efficiency of certified luminosity last week: %2.8f%%" % (100.*ll_lw/ll_rec_lw)
-    print "Delivered luminosity new runs: %2.8f /pb" % (ll_deliv_nr/1e+6)
-    print "Recorded  luminosity new runs: %2.8f /pb" % (ll_rec_nr/1e+6)
-    print "Certified luminosity new runs: %2.8f /pb" % (ll_nr/1e+6)
-    print "Rejected  luminosity new runs: %2.8f /pb" % ((ll_rec_nr-ll_nr)/1e+6)
-    print "Efficiency of certified luminosity new runs: %2.8f%%" % (100.*ll_nr/ll_rec_nr)
+    if verbosityLevel: 
+        print "In the run range:",RUNMIN,"-",RUNMAX
+        print "Delivered luminosity: %2.8f /pb" % (ll_deliv/1e+6)
+        print "Recorded  luminosity: %2.8f /pb" % (ll_rec/1e+6)
+        print "Certified luminosity: %2.8f /pb" % (ll/1e+6)
+        print "Rejected  luminosity: %2.8f /pb" % ((ll_rec-ll)/1e+6)
+        print "Efficiency of certified luminosity: %2.8f%%" % (100.*ll/ll_rec)
+        print "Delivered luminosity last week: %2.8f /pb" % (ll_deliv_lw/1e+6)
+        print "Recorded  luminosity last week: %2.8f /pb" % (ll_rec_lw/1e+6)
+        print "Certified luminosity last week: %2.8f /pb" % (ll_lw/1e+6)
+        print "Rejected  luminosity last week: %2.8f /pb" % ((ll_rec_lw-ll_lw)/1e+6)
+        print "Efficiency of certified luminosity last week: %2.8f%%" % (100.*ll_lw/ll_rec_lw)
+        print "Delivered luminosity new runs: %2.8f /pb" % (ll_deliv_nr/1e+6)
+        print "Recorded  luminosity new runs: %2.8f /pb" % (ll_rec_nr/1e+6)
+        print "Certified luminosity new runs: %2.8f /pb" % (ll_nr/1e+6)
+        print "Rejected  luminosity new runs: %2.8f /pb" % ((ll_rec_nr-ll_nr)/1e+6)
+        print "Efficiency of certified luminosity new runs: %2.8f%%" % (100.*ll_nr/ll_rec_nr)
 
     TOTLUMIACC[cur]=ll
     TOTLUMI[cur]=ll_rec
@@ -605,15 +569,13 @@ def makeplot(cur):
 
     	c_acc[run]=c_acc_curr
 
-    # preparing now the graphs
-
     for p_type in plot_type:
         for p_xtype in plot_xtype:
             for p_xrange in plot_xrange:
                 x=array('d')
-                y1=array('d') # first graph on plot
-                y2=array('d') # second graph on plot
-                y3=array('d') # second graph on plot
+                y1=array('d') 
+                y2=array('d') 
+                y3=array('d') 
                 label=[]
                 numpoint=0
                 ymax=0.0001
@@ -621,8 +583,6 @@ def makeplot(cur):
                 b_y1=0.0
                 b_y2=0.0
                 b_y3=0.0
-
-
 
                 rec_lumi=0.
                 acc_lumi=0.
@@ -671,10 +631,6 @@ def makeplot(cur):
 
                     numpoint+=1
 
-    # ready for the plots
-    # then histos
-    # run based histos
-
                 name=''
                 title=''
                 xlabel=''
@@ -684,11 +640,9 @@ def makeplot(cur):
                 xhigh=0
                 if 'lumi' in p_type:
                     name="IntegratedLuminosity"
-#                     title="Integrated luminosity"
                     ylabel="L_{int} (pb^{-1})"
                 if 'loss' in p_type:
                     name="LossOfIntegratedLuminosity"
-#                     title="Loss of integrated luminosity"
                     ylabel="L_{int} (pb^{-1})"
                 if 'run' in p_xtype:
                     xlabel="Run"
@@ -703,7 +657,7 @@ def makeplot(cur):
                     elif "tot" in p_xrange:
                         time_day_min=RUN_TIME_00[str(listofrun[0])]
 
-                    time_day_max=RUN_TIME_00[str(listofrun[len(listofrun)-1])] # at midnight next day
+                    time_day_max=RUN_TIME_00[str(listofrun[len(listofrun)-1])] 
                     numdays = int(time_day_max-time_day_min+2*86400)/86400
 
                     timehistomin=time_day_min
@@ -723,14 +677,10 @@ def makeplot(cur):
                         labelx=time.strftime("%d %b",time.localtime(timehistomin+(ibin*86400)))
                         if ibin is ( nbin - 1 ):
                             ultimate_date = labelx
-                        #if not ( ibin == 0 or ibin == ( nbin - 1 ) or labelx[ : 2 ] == "01" ):
                         if "tot" in p_xrange and not ( labelx[ : 2 ] == "01" ):
                             labelx = ""
                     plot.GetXaxis().SetBinLabel(ibin+1,labelx)
 
-
-    # then define graphs
-    # first renormalise in case of time graph (otherwise root makes wrong divisions, no idea why)
                 if 'time' in p_xtype:
                     for point in range(0,int(numpoint)):
                         x[point]=(x[point]-timehistomin)/86400.
@@ -761,12 +711,6 @@ def makeplot(cur):
                         gr1.SetTitle("Luminosity loss vs. run number")
                     elif 'time' in p_xtype:
                         gr1.SetTitle("Luminosity loss vs. time")
-
-
-
-
-
-# now really finally plotting it....
 
                 gStyle.SetOptStat(0)
                 gStyle.SetOptFit(0)
@@ -805,7 +749,7 @@ def makeplot(cur):
 
                     xcoord = 0.15
                     ycoord = 0.82
-                    tex0 = TLatex(xcoord,ycoord,"CMS preliminary 2011")
+                    tex0 = TLatex(xcoord,ycoord,"CMS preliminary 2012")
                     tex0.SetNDC(kTRUE)
                     tex0.SetTextSize(0.04)
                     tex0.SetTextColor(1)
@@ -821,7 +765,7 @@ def makeplot(cur):
                     tex0a.Draw()
 
                     if 'tot' in p_xrange:
-                        legendtext +=" until %s 2011"%(ultimate_date)
+                        legendtext +=" until %s 2012"%(ultimate_date)
                     ycoord -= 0.05
                     tex0b = TLatex(xcoord,ycoord,legendtext)
                     tex0b.SetNDC(kTRUE)
@@ -863,7 +807,6 @@ def makeplot(cur):
                 tex3.SetLineWidth(2)
                 tex3.Draw()
 
-
                 c1.Update()
                 pngfile='plot_'+p_type+'_'+p_xtype+'_'+p_xrange+'_'+str(cur)+'.png'
                 cfile='plot_'+p_type+'_'+p_xtype+'_'+p_xrange+'_'+str(cur)+'.C'
@@ -888,16 +831,13 @@ def makesummaryplot():
 
     kTRUE=True
 
-    print " "
-    print "Producing summary plot"
+    if verbosityLevel: 
+        print " "
+        print "Producing summary plot"
 
-    # use this for interactive mode
-#    gROOT.SetBatch(False)
-    # use this for batch mode
     gROOT.SetBatch(True)
 
 
-    # preparing now the graphs
     x=array('d')
     y=array('d')
     y_lw=array('d')
@@ -935,7 +875,6 @@ def makesummaryplot():
 
         numpoint+=1
 
-
     chart_tot = TH1F("AcceptedEffi",";;",numpoint,0,numpoint)
     chart_lw = TH1F("AcceptedEffiLw",";;",numpoint,0,numpoint)
     chart_nr = TH1F("AcceptedEffiNr",";;",numpoint,0,numpoint)
@@ -958,7 +897,6 @@ def makesummaryplot():
     chart_lw.SetFillColor(5)
     chart_nr.SetFillColor(5)
 
-    # we have to fill them
     for bar in range(0,numpoint):
         chart_tot.Fill(bar,y[bar])
         chart_lw.Fill(bar,y_lw[bar])
@@ -974,7 +912,7 @@ def makesummaryplot():
 
     xcoord = 0.10
     ycoord = 0.92
-    tex0 = TLatex(xcoord,ycoord,"CMS preliminary 2011")
+    tex0 = TLatex(xcoord,ycoord,"CMS preliminary 2012")
     tex0.SetNDC(kTRUE)
     tex0.SetTextSize(0.03)
     tex0.SetTextColor(1)
@@ -989,7 +927,7 @@ def makesummaryplot():
     tex0a.SetLineWidth(2)
     tex0a.Draw()
 
-    legendtext ="All runs until %s 2011"%(ultimate_date)
+    legendtext ="All runs until %s 2012"%(ultimate_date)
     ycoord -= 0.03
     tex1 = TLatex(xcoord,ycoord,legendtext)
     tex1.SetNDC(kTRUE)
@@ -1077,10 +1015,6 @@ def makesummaryplot():
 
     return True
 
-
-
-
-###################################################################################
 def looponscenario():
     global TIME_DAYBOUND_MAX,TIME_DAYBOUND_MIN
     global JSONLIST
@@ -1089,9 +1023,8 @@ def looponscenario():
     global KEEPRUNRANGE
     global RUNMINCFG,RUNMAXCFG
 
-    print 'Reading default configuration file from ',DEF_CFG
+    if verbosityLevel: print 'Reading default configuration file from ',DEF_CFG
     CONFIG.read(DEF_CFG)
-    # storing the default request
     DEF_QF=CONFIG.get('Common','QFLAGS')
     DEF_DCS=CONFIG.get('Common','DCS')
 
@@ -1099,12 +1032,9 @@ def looponscenario():
     DEF_DCSS=string.split(DEF_DCS, ',')
 
 
-    # first remove the dbs option.... too expensive
     CONFIG.remove_option("Common","dbs_pds")
 
-    # really loop on scenarios
     for scen in range(0,len(SCENS)):
-#    for scen in range(0,2):
         (curr_tagname,curr_qf,curr_dcs)=SCENS[scen]
         if curr_qf=='default': curr_qf=DEF_QF
         if curr_dcs=='default': curr_dcs=DEF_DCS
@@ -1112,61 +1042,27 @@ def looponscenario():
         TAG_NAME.append(curr_tagname)
 
 
-#    # first produce the full with all required DCS on
-#    JSONLIST.append(produce_json(len(JSONLIST),DEF_QF,DEF_DCS))
-#    TAG_NAME.append("DQM: all, DCS: all on")
-#
-#    # then only all DCS on
-#    JSONLIST.append(produce_json(len(JSONLIST),"NONE:NONE",DEF_DCS))
-#    TAG_NAME.append("DQM: none, DCS: all on")
-#
-#    # then the full with only requirement tracker on
-#    JSONLIST.append(produce_json(len(JSONLIST),DEF_QF,DCS_PDB))
-#    TAG_NAME.append("DQM: all, DCS: Tracker on")
-#    # then per sub-system with only requirement tracker on
-#    for qf in range(len(QF_ALL_SYS)):
-#        JSONLIST.append(produce_json(len(JSONLIST),QF_ALL_SYS[qf]+":GOOD",DCS_PDB))
-#        TAG_NAME.append("DQM: "+QF_ALL_SYS[qf]+", DCS: Tracker on")
-#    # finally only tracker on
-#    JSONLIST.append(produce_json(len(JSONLIST),"NONE:NONE",DCS_PDB))
-#    TAG_NAME.append("DQM: none, DCS: Tracker on")
+    URL  = "http://runregistry.web.cern.ch/runregistry/"
+    api = RRApi(URL, debug = verbosityLevel)
+    RUN_DATA = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime','lhcEnergy'], filter = { 'bfield': '> 3.7', 'class': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
+    RUN_DATA_COMP = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime'], filter = {'datasetState': '= COMPLETED', 'bfield': '> 3.7', 'class': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
 
-
-    # access run registry to get the full list of runs and start/end time
-   
-    server = xmlrpclib.ServerProxy("http://cms-service-runregistry-api.web.cern.ch/cms-service-runregistry-api/xmlrpc")
-    #server = xmlrpclib.ServerProxy("http://pccmsdqm04.cern.ch/runregistry_api/xmlrpc")
-    #sel_runtable="{groupName} = 'Collisions10' and {datasetName} LIKE '%Express%' and {bfield}>3.7 and {runNumber} >= "+RUNMINCFG+" and {runNumber} <= "+RUNMAXCFG 
-    sel_runtable="{groupName} = 'Collisions11' and {datasetName} LIKE '%Prompt%'  and {bfield}>3.7 and {runNumber} >= "+RUNMINCFG+" and {runNumber} <= "+RUNMAXCFG
-
-    # NEW CKR 10.10.2011:
-    sel_runtable_comp="{groupName} = 'Collisions11' and {datasetName} LIKE '%Prompt%' and {datasetState} = 'COMPLETED' and {bfield}>3.7 and {runNumber} >= "+RUNMINCFG+" and {runNumber} <= "+RUNMAXCFG
-
-
-    RUN_DATA= server.DataExporter.export('RUN', 'GLOBAL', 'csv_runs', sel_runtable)
-    RUN_DATA_COMP= server.DataExporter.export('RUN', 'GLOBAL', 'csv_runs', sel_runtable_comp)
-
-    BEAM_ENE_ALL=[450.0,1380.0,3500.0]
-    BEAM_ENE_DEF=3500.0
-
+    BEAM_ENE_ALL=[450.0,1380.0,3500.0,4000.0]
+    BEAM_ENE_DEF=4000.0  
 
     RUNLIST_COMP=[]
     for line in RUN_DATA_COMP.split("\n"):
-        runno=line.split(',')[0]        
+        runno=line.split(',')[0]
         if runno.isdigit():
             RUNLIST_COMP.append(runno)
-
+   
     RUNLIST_NOCOMP=[]
 
     for line in RUN_DATA.split("\n"):
-        
         runno=line.split(',')[0]
-        
         if runno.isdigit():
-            # we need to do something to avoid parsing commas in comment column
-            group=line.split('",')[8]
-            energy=group.split(',')[0]
-
+            energy=line.split(',')[2]
+            
             mindiff=999999.
             try:
                 float(energy)
@@ -1177,37 +1073,33 @@ def looponscenario():
                 mindiff=999999.
                 
             if mindiff>400.0:
-                print "WARNING: Something wrong with energies in run "+runno
-                print "WARNING: Getting: "+energy+" from RR.Using default value of:"+str(BEAM_ENE_DEF)
+                if verbosityLevel: 
+                    print "WARNING: Something wrong with energies in run "+runno
+                    print "WARNING: Getting: "+energy+" from RR.Using default value of:"+str(BEAM_ENE_DEF)
                 energy=str(BEAM_ENE_DEF)
 
-            #exclude runs not at 7 TeV
-            if abs(float(energy)-3500.)>400.:
+            if abs(float(energy)-4000.)>400.:   
                 continue
 
-            endtime=line.split(',')[2]
-            # transform time in unix time
-            timeinsec=time.mktime(time.strptime(endtime,'"%Y-%m-%dT%H:%M:%S.0"'))
-            day_bound=endtime.split('T')[0]
-            day_bound_min=time.mktime(time.strptime(day_bound+'T00:00:00"','"%Y-%m-%dT%H:%M:%S"'))
-            day_bound_max=time.mktime(time.strptime(day_bound+'T23:59:59"','"%Y-%m-%dT%H:%M:%S"'))
+            endtime=line.split(',')[1]
+            timeinsec=time.mktime(time.strptime(endtime.strip(),"%a %d-%m-%y %H:%M:%S"))
+            day_bound=endtime.split(' ')[2]
+            day_bound_min=time.mktime(time.strptime(day_bound+'T00:00:00',"%d-%m-%yT%H:%M:%S"))
+            day_bound_max=time.mktime(time.strptime(day_bound+'T23:59:59',"%d-%m-%yT%H:%M:%S"))
 
             RUN_TIME_ALL[runno]=timeinsec
             if runno in RUNLIST_COMP:
-                # select only those in completed status
                 RUN_TIME_00[runno]=day_bound_min
                 RUN_TIME[runno]=timeinsec
             else:
                 RUNLIST_NOCOMP.append(runno)
 
-    # if runs not in COMPLETED status are found, report them here
     if len(RUNLIST_NOCOMP)!=0:
-        print "WARNING: there are runs in the specified run range not in COMPLETED status:"
-        print "WARNING: the runs below are NOT considered in the recorded and delivered lumi calculations"
-        print RUNLIST_NOCOMP
+        if verbosityLevel: 
+            print "WARNING: there are runs in the specified run range not in COMPLETED status:"
+            print "WARNING: the runs below are NOT considered in the recorded and delivered lumi calculations"
+            print RUNLIST_NOCOMP
         
-                
-
 def definetemplates():
     global MAINPAGE_TEMPL,SCENARIO_TEMPL,SCENARIOLINE_TEMPL,PLOT_TEMPL
     global LUMILOSS_ROW_TEMPL
@@ -1231,9 +1123,9 @@ USE IT AT YOUR OWN RISK<br>
 </big></big></big></div>
 <br>
 <br>
-Criteria: all runs in the run range below belonging to the Collisions11  group and with nominal BField and energy<br>
+Criteria: all runs in the run range below belonging to the Collisions12  group and with nominal BField and energy<br>
 Latest update:&nbsp; <span style="color: rgb(0, 0, 153);">TAG_DATE</span><br>
-Default JSON file used: <span style="color: rgb(0, 0, 153);"> <a href="runreg_std.cfg" target="_blank">runreg_std.cfg</a></span><br>
+Configuration file used: <span style="color: rgb(0, 0, 153);"> <a href="lumi_web_Prompt2012.cfg" target="_blank"></a>lumi_web_Prompt2012.cfg</span><br>
 Run range used here: <span style="color: rgb(0, 0, 153);">TAG_RUNRANGE (i.e. up to TAG_LASTRUNDATE) </span><br>
 <br>
 Datasets and run range per dataset: <span style="color: rgb(0, 0, 153);">TAG_DSRUNRANGE </span><br>
@@ -1324,16 +1216,13 @@ def makehtmlpages():
     global REL_LOSS_VAL
     
     definetemplates()
-    # replace tags and lines
     curr_time=time.asctime()
     MAINPAGE_TEMPL=MAINPAGE_TEMPL.replace("TAG_DATE",curr_time)
-    # copy cfg file
-    os.system('cp '+DEF_CFG+' '+HTMLDIR+'/runreg_std.cfg')
+    os.system('cp '+DEF_CFG+' '+HTMLDIR+'/lumi_web_Prompt2012.cfg')
 
     MAINPAGE_TEMPL=MAINPAGE_TEMPL.replace("TAG_RUNRANGE",str(RUNMIN)+'-'+str(RUNMAX))
     MAINPAGE_TEMPL=MAINPAGE_TEMPL.replace("TAG_LASTRUNDATE",time.ctime(RUN_TIME[str(RUNMAX)]))
 
-# datasets and run range
     ds_rr_replace="<br>"
     DSETS=NEW_DATASET_ALL.split()
     for DS in DSETS:
@@ -1349,7 +1238,6 @@ def makehtmlpages():
         SCENARIO_CURR=SCENARIO_CURR.replace("TAG_LLSUMM",TAG_LLSUMM)
         SCENARIO_LINES+=SCENARIO_CURR
 
-        # make up scenario pages
         SCENARIO_PAGE=SCENARIO_TEMPL
         SCENARIO_PAGE=SCENARIO_PAGE.replace("TAG_SCENARIO",TAG_NAME[scenario])
         SCENARIO_PAGE=SCENARIO_PAGE.replace("TAG_DATE",curr_time)
@@ -1373,8 +1261,6 @@ def makehtmlpages():
         htmlfile.close()
 
     MAINPAGE_TEMPL=MAINPAGE_TEMPL.replace("TAG_SCENARIOLINES",SCENARIO_LINES)
-    # add plots to main page
-    # first lumi
     PLOTLINE=""
     PLOTLEFT ='plot_lumi_time_tot_0'
     PLOTMIDDLE='plot_lumi_run_new_0'
@@ -1383,7 +1269,6 @@ def makehtmlpages():
     PLOTLINE+='<a href="'+PLOTMIDDLE+'.png"> <img src="'+PLOTMIDDLE+'.png" alt="'+PLOTMIDDLE+'" width="30%" /></a>\n'
     PLOTLINE+='<a href="'+PLOTRIGHT+'.png"> <img src="'+PLOTRIGHT+'.png" alt="'+PLOTRIGHT+'" width="30%" /></a>\n'
     MAINPAGE_TEMPL=MAINPAGE_TEMPL.replace("TAG_LUMIPLOT",PLOTLINE)
-    # then losses
     PLOTLINE=""
     PLOTLEFT ='plot_loss_time_tot_0'
     PLOTMIDDLE='plot_loss_run_new_0'
@@ -1392,7 +1277,6 @@ def makehtmlpages():
     PLOTLINE+='<a href="'+PLOTMIDDLE+'.png"> <img src="'+PLOTMIDDLE+'.png" alt="'+PLOTMIDDLE+'" width="30%" /></a>\n'
     PLOTLINE+='<a href="'+PLOTRIGHT+'.png"> <img src="'+PLOTRIGHT+'.png" alt="'+PLOTRIGHT+'" width="30%" /></a>\n'
     MAINPAGE_TEMPL=MAINPAGE_TEMPL.replace("TAG_LOSSPLOT",PLOTLINE)
-    # then summaries
     PLOTLINE=""
     PLOTLEFT ='plot_summary_tot'
     PLOTMIDDLE='plot_summary_nr'
@@ -1404,13 +1288,9 @@ def makehtmlpages():
     os.system('mv '+PLOTLEFT+'.png '+HTMLDIR+'/')
     os.system('mv '+PLOTMIDDLE+'.png '+HTMLDIR+'/')
     os.system('mv '+PLOTRIGHT+'.png '+HTMLDIR+'/')
-    # also for the lumiloss summaries
     os.system('mv lumiloss_* '+HTMLDIR+'/')
     
-    # create table for relative lumilosses in main page
-
     allrows=""
-    # build up single rows in tables
     for comparison in range(0,len(REL_LOSS)):
         pair=REL_LOSS[comparison]
         curr_sc=pair[0]
@@ -1425,42 +1305,23 @@ def makehtmlpages():
         
     MAINPAGE_TEMPL=MAINPAGE_TEMPL.replace("TAG_LUMI_LOSS_REL",allrows)
         
-    # write page
     htmlfile=open(HTMLDIR+"/lumiforphys.html",'w')
     htmlfile.write(MAINPAGE_TEMPL)
     htmlfile.close()
-    print "HTML pages created in "+HTMLDIR
-
-
-
-##############################################################################
-# start main
-
-
+    if verbosityLevel: print "HTML pages created in "+HTMLDIR
 
 def makelumilosssummaries():
     global TAG_NAME,REL_LOSS,REL_LOSS_VAL
 
-#LM####################THIS MUST GO
-#    # really loop on scenarios
-#    for scen in range(0,len(SCENS)):
-#    for scen in range(0,2):
-#        (curr_tagname,curr_qf,curr_dcs)=SCENS[scen]
-#        TAG_NAME.append(curr_tagname)
-#LM#####################END TO GO
-
-    print " "
-    print "Making lumi loss summaries (plots + txt)....."
+    if verbosityLevel: 
+        print " "
+        print "Making lumi loss summaries (plots + txt)....."
     tagname=[]
     for scenario in range(0,len(TAG_NAME)):
         tagname.append(TAG_NAME[scenario].replace(' ','_'))
 
-#LM uncomments this
-    analoss.ana(tagname)
+    analoss.ana(tagname, verbosityLevel)
 
-    # now analyze lumilosses per scenario and make relative comparisons
-
-    
     for pair in REL_LOSS:
         curr_sc=pair[0]
         refe_sc=pair[1]
@@ -1468,7 +1329,6 @@ def makelumilosssummaries():
         refe={}
         ll_diff={}
         
-        # open current scenario and read lumilosses
         filenametxt="lumiloss_"+tagname[curr_sc]+".txt"
         filetxt=open(filenametxt,'r')
         for line in filetxt.readlines():
@@ -1476,7 +1336,6 @@ def makelumilosssummaries():
             ll=float(line.split()[1])
             curr[runno]=ll
         filetxt.close()
-        # open reference scenario and read lumilosses
         filenametxt="lumiloss_"+tagname[refe_sc]+".txt"
         filetxt=open(filenametxt,'r')
         for line in filetxt.readlines():
@@ -1485,14 +1344,11 @@ def makelumilosssummaries():
             refe[runno]=ll
         filetxt.close()
         
-        # make difference and sum
         ll_diff_sum=0.
         for run in curr.keys():        
             ll_diff[run]=refe[run]-curr[run]
             ll_diff_sum+=ll_diff[run]
         REL_LOSS_VAL.append(ll_diff_sum)
-        
-        # and write it ordered by lumi loss
         
         filenametxt="lumiloss_rel_"+str(curr_sc)+"_"+str(refe_sc)+".txt"
         filetxt=open(filenametxt,'w')
@@ -1502,8 +1358,6 @@ def makelumilosssummaries():
             filetxt.write(str(runno)+" "+str(lumiloss)+"\n")
         filetxt.close()
 
-        
-
 def main():
 
     global DEF_CFG,LUMI_CSV,LUMI_RESET,JSONLIST,GLOB,KEEPRUNRANGE
@@ -1511,9 +1365,7 @@ def main():
 
 
     parser=OptionParser()
-    # required parameters
     parser.add_option('-c','--cfg',dest='runregcfg',default='none',help='standard runreg.cfg (required)')
-    # optional parameters
     parser.add_option('-l','--lumicsv',dest='lumicsv',default='none',help='lumicsv file (optional), if not given luminosity taken from lumidb')
     parser.add_option('-r','--resetlumi',dest='resetlumi',action="store_true",default=False,help='lumi cache file is reset (it might be long)')
     parser.add_option('-g','--global',dest='central',action="store_true",default=False,help='set all paths for central running (to create global web pages)')
@@ -1536,44 +1388,40 @@ def main():
     LUMI_RESET=options.resetlumi
     KEEPRUNRANGE=options.keeprange
 
-# htmldirectory
     if GLOB:
 
         HTMLDIR='/afs/cern.ch/user/m/malgeril/www/lumiforphys'
         LUMICACHE='lumicache.csv'
         CERT_DIR='/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions11/7TeV/DCSOnly'
-        #CERT_DIR='/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions10/7TeV/DCSOnly'
-        print "Running centrally and writing in:"
-        print "HTMLDIR:   ",HTMLDIR
-        print "LUMICACHE: ",LUMICACHE
-        print "CERT_DIR:  ",CERT_DIR
+        if verbosityLevel: 
+            print "Running centrally and writing in:"
+            print "HTMLDIR:   ",HTMLDIR
+            print "LUMICACHE: ",LUMICACHE
+            print "CERT_DIR:  ",CERT_DIR
 
     else:
         HTMLDIR='./htmldir'
         LUMICACHE='lumicache_local.csv'
         CERT_DIR='./'
-        print "Running locally and writing in:"
-        print "HTMLDIR:   ",HTMLDIR
-        print "LUMICACHE: ",LUMICACHE
-        print "CERT_DIR:  ",CERT_DIR
+        if verbosityLevel: 
+            print "Running locally and writing in:"
+            print "HTMLDIR:   ",HTMLDIR
+            print "LUMICACHE: ",LUMICACHE
+            print "CERT_DIR:  ",CERT_DIR
 
     if not os.path.exists(HTMLDIR):
-        print "The diretory ",HTMLDIR," does not exist, creating it...."
+        if verbosityLevel: print "The diretory ",HTMLDIR," does not exist, creating it...."
         os.system("mkdir "+HTMLDIR)
 
 
-    # first loop on all scenarios
-
     looponscenario()
 
-    # then read the run/lumi
     if LUMI_CSV=='none':
         readlumi_db()
     else:
         readlumi()
 
 
-    # final make the plots for each scenario
     for scenario in range(0,len(JSONLIST)):
         makeplot(scenario)
 
@@ -1581,14 +1429,9 @@ def main():
     makelumilosssummaries()
     makehtmlpages()
 
-    ## copy the basic json (DCS all on only) in the certification area
-    #ref=REPORT[1]
-    # copy the basic json (DCS tracker on only) in the certification area
     ref=REPORT[len(JSONLIST)-1]
-    # first read run range from json
     json_file_ref=file(ref[2],'r')
     json_dict = json.load(json_file_ref)
-    # determine runmin and runmax
     RMIN=999999
     RMAX=0
     for run in json_dict.keys():
@@ -1596,7 +1439,7 @@ def main():
     		RMAX=int(run)
     	if int(run)<RMIN:
     		RMIN=int(run)
-    print "Run Range in JSON file for DCS Tracker Only certification:",RMIN,"-",RMAX
+    if verbosityLevel: print "Run Range in JSON file for DCS Tracker Only certification:",RMIN,"-",RMAX
     certfile_name=CERT_DIR+"/DCSTRONLY_"+str(RMIN)+"-"+str(RMAX)
     os.system("cp "+ref[2]+" "+certfile_name)
     json_file_ref.close()

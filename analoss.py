@@ -3,7 +3,7 @@ from optparse import OptionParser
 from array import array
 from operator import itemgetter
 
-def ana(tagname):
+def ana(tagname, verbosityLevel):
     CUT=0.1
     tag1="LossOfIntegratedLuminosity->GetXaxis()->SetBinLabel("
     tag2="graph->SetPoint("
@@ -13,7 +13,7 @@ def ana(tagname):
     
     for scenario in range(0,len(tagname)):
         FILEIN=FILEPRE+str(scenario)+'.C'
-        print "opening file "+FILEIN
+        if verbosityLevel: print "opening file "+FILEIN
         f=open(FILEIN,'r')
         
         runlist={}
@@ -37,11 +37,11 @@ def ana(tagname):
         for item in runlist.keys():
             lossperrun[runlist[item]]=losslist[item]
         
-        print lossperrun.items()
+        if verbosityLevel: print lossperrun.items()
         sortedlist=sorted(lossperrun.items(), key=itemgetter(1),reverse=True)
         sortedscenario.append(sortedlist)
     
-    print sortedscenario
+    if verbosityLevel: print sortedscenario
     from ROOT import TCanvas,TGraph,gStyle,gROOT,TH1F,TLatex,gPad
 
     gROOT.SetBatch(True)
@@ -63,7 +63,7 @@ def ana(tagname):
             if lumiloss>CUT:
                 texlines.append(runno+": "+"%3.2f"%lumiloss+"pb^{-1}")
         filetxt.close()
-        print "File: "+filenametxt+" written!"
+        if verbosityLevel: print "File: "+filenametxt+" written!"
         plot.Draw()
         gPad.SetLogy(1)
         
@@ -76,7 +76,6 @@ def ana(tagname):
             if line==0: text="Total loss: "+"%3.2f"%totloss+" pb^{-1}"
             if line==1: text="Major losses (>0.1 pb^{-1}):"
             if line>1: text=texlines[line-2]
-    #        print xcoord,ycoord,text
             tex0.append(TLatex(xcoord,ycoord,text))
             tex0[len(tex0)-1].SetNDC(True)
             tex0[len(tex0)-1].SetTextSize(0.03)
