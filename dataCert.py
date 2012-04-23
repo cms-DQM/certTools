@@ -2,9 +2,9 @@
 ################################################################################
 # 
 #
-# $Author: borrell $
-# $Date: 2012/04/18 14:31:46 $
-# $Revision: 1.2 $
+# $Author: smaruyam $
+# $Date: 2012/04/18 18:05:02 $
+# $Revision: 1.3 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -50,6 +50,13 @@ class Certifier():
         self.online_cfg  = "FALSE"
         self.usedbs = False
         self.dsstate = ""
+
+        print "First run ", self.runmin
+        print "Last run ", self.runmax
+        print "Dataset name ", self.dataset
+        print "Group name ", self.group
+        print "Quality flags ", self.qflist
+        print "DCS flags ", self.dcslist
 
         for item in cfglist:
             if "BEAM_ENE" in item[0].upper():
@@ -287,6 +294,7 @@ def get_dbsjson(datasets, runmin, runmax):
 
     for ds in  datasets.split(","):
         command='dbs search --query="find run,lumi where dataset=%s and run >=%s  and run<=%s"' % (ds, runmin, runmax)
+        print command
         (status, out) = commands.getstatusoutput(command)
         if status: 
             sys.stderr.write(out)
