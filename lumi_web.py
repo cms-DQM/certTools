@@ -259,8 +259,8 @@ def readlumi_db():
 
             try:
                 if verbosityLevel: print "Accessing LumiDB for run: "+runno
-                lumitable=commands.getoutput("lumiCalc2.py  -c frontier://LumiProd/CMS_LUMI_PROD lumibyls -r "+runno+" -b stable -o stdout")
-                lumitable_overview=commands.getoutput("lumiCalc2.py  -c frontier://LumiProd/CMS_LUMI_PROD overview -r "+runno+" -b stable -o stdout")
+                lumitable=commands.getoutput("lumiCalc2.py  lumibyls -r "+runno+" -b stable --norm pp8TeV -o stdout")
+                lumitable_overview=commands.getoutput("lumiCalc2.py overview -r "+runno+" -b stable --norm pp8TeV -o stdout")
 
             except:
                 print "Problem in accessing lumidb for run:"+runno
@@ -272,18 +272,18 @@ def readlumi_db():
                 try:
                     thelist=eval(line)
                 except:
-                    print "ERROR: something wrong in lumicalc overview line, skipping it:"
+                    print "ERROR 1: something wrong in lumicalc overview line, skipping it:"
                     print line
                     continue
 
 # it seems there is CMSSW version dependence in the output format of lumiCalc2.py
 # one case, 'run:fill', and another case, 'run' <-- be careful
 # remove these lines after syntronized
-                #if len(thelist)==5 and int(thelist[0].split(':')[0])==int(runno):
-                if len(thelist)==5 and int(thelist[0])==int(runno):
+                if len(thelist)==5 and int(thelist[0].split(':')[0])==int(runno):
+#                if len(thelist)==5 and int(thelist[0])==int(runno):
                     tmplumi_deliv=thelist[2]
                 else:
-                    print "ERROR: something wrong in lumicalc overview line, skipping it:"
+                    print "ERROR 2: something wrong in lumicalc overview line, skipping it:"
                     print line
                     continue
             
@@ -296,21 +296,21 @@ def readlumi_db():
                     thelist=eval(line)
                 except:
                     if verbosityLevel : 
-                        print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
+                        print "ERROR 1: something wrong in lumicalc lumibyls line, skipping it:"
                         print line
                     continue
                 if len(thelist)==7:
                     lsrange=thelist[1].split(":")
                     if str(thelist[6]).find("n/a") == -1:
                         try:
-                            #this_run=thelist[0].split(":")[0]
-                            this_run=thelist[0]
+                            this_run=thelist[0].split(":")[0]
+#                            this_run=thelist[0]
                             this_ls=int(lsrange[0])
                             this_recorded=float(thelist[6])
                             this_delivered=float(thelist[5])
                         except:
                             if verbosityLevel : 
-                                print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
+                                print "ERROR 2: something wrong in lumicalc lumibyls line, skipping it:"
                                 print line
                                 continue
                     else: 
@@ -331,7 +331,7 @@ def readlumi_db():
                                 
                 else:
                     if verbosityLevel : 
-                        print "ERROR: something wrong in lumicalc lumibyls line, skipping it:"
+                        print "ERROR 3: something wrong in lumicalc lumibyls line, skipping it:"
                         print line
                         continue
                 
