@@ -1044,8 +1044,8 @@ def looponscenario():
 
     URL  = "http://runregistry.web.cern.ch/runregistry/"
     api = RRApi(URL, debug = verbosityLevel)
-    RUN_DATA = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime','lhcEnergy'], filter = { 'bfield': '> 3.7', 'class': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
-    RUN_DATA_COMP = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime'], filter = {'datasetState': '= COMPLETED', 'bfield': '> 3.7', 'class': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
+    RUN_DATA = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime','lhcEnergy'], filter = { 'bfield': '> 3.7', 'runClassName': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
+    RUN_DATA_COMP = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime'], filter = {'datasetState': '= COMPLETED', 'bfield': '> 3.7', 'runClassName': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
 
     BEAM_ENE_ALL=[450.0,1380.0,3500.0,4000.0]
     BEAM_ENE_DEF=4000.0  
