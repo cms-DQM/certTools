@@ -66,8 +66,8 @@ Writing logfile $file
 
 DCS losses:
 `awk '{$3=="all_on" && x += $2}; END {print "all= " x}' lossdcs.ascii`
-`awk '{$3=="Strip" && x += $2}; END {print "SiStrip= " x}' lossdcs.ascii`
-`awk '{$3=="Pix" && x += $2}; END {print "Pixel= " x}' lossdcs.ascii`
+`awk '{$3=="Strip_on" && x += $2}; END {print "SiStrip= " x}' lossdcs.ascii`
+`awk '{$3=="Pix_on" && x += $2}; END {print "Pixel= " x}' lossdcs.ascii`
 `awk '{$3=="Csc_on" && x += $2}; END {print "CSC= " x}' lossdcs.ascii`
 `awk '{$3=="Dt_on" && x += $2}; END {print "DT= " x}' lossdcs.ascii`
 `awk '{$3=="HCAL_on" && x += $2}; END {print "Hcal= " x}' lossdcs.ascii`
