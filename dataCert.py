@@ -2,9 +2,9 @@
 ################################################################################
 # 
 #
-# $Author: smaruyam $
-# $Date: 2012/04/18 18:05:02 $
-# $Revision: 1.3 $
+# $Author: borrell $
+# $Date: 2012/04/23 15:04:29 $
+# $Revision: 1.4 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -50,6 +50,7 @@ class Certifier():
         self.online_cfg  = "FALSE"
         self.usedbs = False
         self.dsstate = ""
+        self.component = []
 
         print "First run ", self.runmin
         print "Last run ", self.runmax
@@ -68,6 +69,9 @@ class Certifier():
                 self.online_cfg = item[1]
             if "DSSTATE" in item[0].upper():
                 self.dsstate = item[1]
+            if "COMPONENT" in item[0].upper():
+                self.component = item[1].split(',')
+                print 'COMPONENT ', self.component
                 
         self.dbs_pds = self.dbs_pds_all.split(",")
 
@@ -90,7 +94,7 @@ class Certifier():
                     print "Beam Energy ", self.beamene
             except:
                 print "BEAMENE value not understood: ", self.beamene
-                sys.exit(1)
+                sys.exit(1)                
 
     def generateFilter(self):
         self.filter = {}
@@ -102,16 +106,18 @@ class Certifier():
             (sys,value) = qf.split(':')
             if self.verbose: print qf
             if sys != "NONE":
-                self.filter.setdefault(sys.lower()+"Status", self.qry[value])
-                if sys.lower() != 'lumi' and sys.lower() != 'track':
+                if sys.lower() != 'track':
+                    self.filter.setdefault(sys.lower()+"Status", self.qry[value])
+                if sys.lower() != 'tracker':
                     self.filter.setdefault("dataset", {})\
                                                       .setdefault("filter", {})\
                                                       .setdefault(sys.lower(), {})\
                                                       .setdefault("status", " = %s" % value)
 
         for dcs in self.dcslist:
-            self.filter.setdefault(dcs.lower()+"Ready", "isNull OR  = true")
-            if self.verbose: print dcs
+            if dcs != "NONE":
+                self.filter.setdefault(dcs.lower()+"Ready", "isNull OR  = true")
+                if self.verbose: print dcs
             
         if self.online:
             self.filter.setdefault("dataset", {})\
@@ -139,6 +145,15 @@ class Certifier():
                                           .setdefault("filter",{})\
                                           .setdefault("bfield", "> %.1f" % self.bfield)
         self.filter.setdefault("cmsActive", "isNull OR = true")
+
+        for comp in self.component:
+             if comp != 'NONE':
+                 self.filter.setdefault("dataset", {})\
+                                                   .setdefault("filter", {})\
+                                                   .setdefault("run", {})\
+                                                   .setdefault("filter",{})\
+                                                   .setdefault(comp.lower()+"Present", " = true")
+
         if len(self.dsstate):
             self.filter.setdefault("dataset", {})\
                                           .setdefault("filter", {})\
