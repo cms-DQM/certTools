@@ -3,8 +3,8 @@
 # 
 #
 # $Author: borrell $
-# $Date: 2012/04/23 15:04:29 $
-# $Revision: 1.4 $
+# $Date: 2012/05/31 21:34:28 $
+# $Revision: 1.5 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -185,6 +185,7 @@ class Certifier():
                                        , table = 'datasetlumis'\
                                        , template = 'json'\
                                        , columns = ['runNumber', 'sectionFrom', 'sectionTo']\
+                                       , tag = 'LATEST'\
                                        , filter = self.filter)
         if self.verbose:
             print "Printing JSON file ", json.dumps(self.cert_json)
