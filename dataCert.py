@@ -3,8 +3,8 @@
 # 
 #
 # $Author: borrell $
-# $Date: 2012/05/31 21:34:28 $
-# $Revision: 1.5 $
+# $Date: 2012/06/22 11:40:05 $
+# $Revision: 1.6 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -18,6 +18,7 @@ class Certifier():
     
     cfg='runreg.cfg'
     OnlineRX = "%Online%ALL"
+    EXCL_LS_BITS = ('jetmet','muon','egamma')
     
     def __init__(self,argv,verbose=False):
         self.verbose = verbose
@@ -106,13 +107,13 @@ class Certifier():
             (sys,value) = qf.split(':')
             if self.verbose: print qf
             if sys != "NONE":
-                if sys.lower() != 'track':
+                # Check if the bit is not excluded to avoide filter on LS for Egamma, Muon, JetMET
+                if len([i for i in self.EXCL_LS_BITS if i == sys.lower()]) == 0:
                     self.filter.setdefault(sys.lower()+"Status", self.qry[value])
-                if sys.lower() != 'tracker':
-                    self.filter.setdefault("dataset", {})\
-                                                      .setdefault("filter", {})\
-                                                      .setdefault(sys.lower(), {})\
-                                                      .setdefault("status", " = %s" % value)
+                self.filter.setdefault("dataset", {})\
+                                                  .setdefault("filter", {})\
+                                                  .setdefault(sys.lower(), {})\
+                                                  .setdefault("status", " = %s" % value)
 
         for dcs in self.dcslist:
             if dcs != "NONE":
