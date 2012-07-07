@@ -7,13 +7,13 @@ from optparse import OptionParser
 from array import array
 import json, csv
 import analoss
+import os
 
 from rrapi import RRApi, RRApiError
 
 SCENS=[
     ('DQM: all, DCS: all on','default','default'), 
     ('DQM: none, DCS: all on','NONE:NONE','default'),
-    ('DQM: none, DCS: none','NONE:NONE','NONE:NONE'),
     ('DQM: none, DCS: Strip on','NONE:NONE','Tibtid,TecM,TecP,Tob'),
     ('DQM: none, DCS: Pix on','NONE:NONE','Bpix,Fpix'),
     ('DQM: none, DCS: Ecal on','NONE:NONE','Ebm,Ebp,EeM,EeP'),
@@ -509,21 +509,21 @@ def makeplot(cur):
 
     if verbosityLevel: 
         print "In the run range:",RUNMIN,"-",RUNMAX
-        print "Delivered luminosity: %2.8f /pb" % (ll_deliv/1e+6)
-        print "Recorded  luminosity: %2.8f /pb" % (ll_rec/1e+6)
-        print "Certified luminosity: %2.8f /pb" % (ll/1e+6)
-        print "Rejected  luminosity: %2.8f /pb" % ((ll_rec-ll)/1e+6)
-        print "Efficiency of certified luminosity: %2.8f%%" % (100.*ll/ll_rec)
-        print "Delivered luminosity last week: %2.8f /pb" % (ll_deliv_lw/1e+6)
-        print "Recorded  luminosity last week: %2.8f /pb" % (ll_rec_lw/1e+6)
-        print "Certified luminosity last week: %2.8f /pb" % (ll_lw/1e+6)
-        print "Rejected  luminosity last week: %2.8f /pb" % ((ll_rec_lw-ll_lw)/1e+6)
-        print "Efficiency of certified luminosity last week: %2.8f%%" % (100.*ll_lw/ll_rec_lw)
-        print "Delivered luminosity new runs: %2.8f /pb" % (ll_deliv_nr/1e+6)
-        print "Recorded  luminosity new runs: %2.8f /pb" % (ll_rec_nr/1e+6)
-        print "Certified luminosity new runs: %2.8f /pb" % (ll_nr/1e+6)
-        print "Rejected  luminosity new runs: %2.8f /pb" % ((ll_rec_nr-ll_nr)/1e+6)
-        print "Efficiency of certified luminosity new runs: %2.8f%%" % (100.*ll_nr/ll_rec_nr)
+        print "Delivered luminosity: %2.2f /pb" % (ll_deliv/1e+6)
+        print "Recorded  luminosity: %2.2f /pb" % (ll_rec/1e+6)
+        print "Certified luminosity: %2.2f /pb" % (ll/1e+6)
+        print "Rejected  luminosity: %2.2f /pb" % ((ll_rec-ll)/1e+6)
+        print "Efficiency of certified luminosity: %2.2f%%" % (100.*ll/ll_rec)
+        print "Delivered luminosity last week: %2.2f /pb" % (ll_deliv_lw/1e+6)
+        print "Recorded  luminosity last week: %2.2f /pb" % (ll_rec_lw/1e+6)
+        print "Certified luminosity last week: %2.2f /pb" % (ll_lw/1e+6)
+        print "Rejected  luminosity last week: %2.2f /pb" % ((ll_rec_lw-ll_lw)/1e+6)
+        print "Efficiency of certified luminosity last week: %2.2f%%" % (100.*ll_lw/ll_rec_lw)
+        print "Delivered luminosity new runs: %2.2f /pb" % (ll_deliv_nr/1e+6)
+        print "Recorded  luminosity new runs: %2.2f /pb" % (ll_rec_nr/1e+6)
+        print "Certified luminosity new runs: %2.2f /pb" % (ll_nr/1e+6)
+        print "Rejected  luminosity new runs: %2.2f /pb" % ((ll_rec_nr-ll_nr)/1e+6)
+        print "Efficiency of certified luminosity new runs: %2.2f%%" % (100.*ll_nr/ll_rec_nr)
 
     TOTLUMIACC[cur]=ll
     TOTLUMI[cur]=ll_rec
@@ -631,6 +631,19 @@ def makeplot(cur):
                             ymin=loss
 
                     numpoint+=1
+   
+                # Calculate relevant times
+		if "lastweek" in p_xrange:
+                    time_day_min=RUN_TIME_00[str(firstrun_lw)]
+                elif "new" in p_xrange:
+                    time_day_min=RUN_TIME_00[str(firstrun_nr)]
+                elif "tot" in p_xrange:
+                    time_day_min=RUN_TIME_00[str(listofrun[0])]
+                time_day_max=RUN_TIME_00[str(listofrun[len(listofrun)-1])]
+                numdays = int(time_day_max-time_day_min+2*86400)/86400
+                timehistomin=time_day_min
+                timehistomax=numdays*86400+timehistomin
+                
 
                 name=''
                 title=''
@@ -651,36 +664,28 @@ def makeplot(cur):
                     xlow=0
                     xhigh=numpoint
                 if 'time' in p_xtype:
-                    if "lastweek" in p_xrange:
-                        time_day_min=RUN_TIME_00[str(firstrun_lw)]
-                    elif "new" in p_xrange:
-                        time_day_min=RUN_TIME_00[str(firstrun_nr)]
-                    elif "tot" in p_xrange:
-                        time_day_min=RUN_TIME_00[str(listofrun[0])]
-
-                    time_day_max=RUN_TIME_00[str(listofrun[len(listofrun)-1])] 
-                    numdays = int(time_day_max-time_day_min+2*86400)/86400
-
-                    timehistomin=time_day_min
-                    timehistomax=numdays*86400+timehistomin
                     xlabel="Date"
                     nbin=numdays
                     xlow=0
                     xhigh=numdays
 
                 plot= TH1F(name,title+";"+xlabel+";"+ylabel,nbin,xlow,xhigh)
-
+		
+	        # Set Labels for the histograms
                 labelx=''
+                labelstep = nbin // 10     
+                if labelstep == 0:
+                    labelstep = 1
                 for ibin in range(0,nbin):
                     if 'run' in p_xtype:
                         labelx=label[ibin]
                     elif 'time' in p_xtype:
-                        labelx=time.strftime("%d %b",time.localtime(timehistomin+(ibin*86400)))
-                        if ibin is ( nbin - 1 ):
-                            ultimate_date = labelx
-                        if "tot" in p_xrange and not ( labelx[ : 2 ] == "01" ):
-                            labelx = ""
+                        labelx=time.strftime("%d %b",time.localtime(timehistomin+(ibin*86400))) 
                     plot.GetXaxis().SetBinLabel(ibin+1,labelx)
+
+                # Set Ultimate Date
+                ultimate_date=labelx=time.strftime("%d %b",time.localtime(time_day_max)) 
+                
 
                 if 'time' in p_xtype:
                     for point in range(0,int(numpoint)):
@@ -718,8 +723,13 @@ def makeplot(cur):
                 plot.LabelsOption("v","X")
                 plot.SetMaximum(ymax*1.05)
                 plot.SetMinimum(ymin*1.05)
-
+                plot.SetTitleOffset(2.,"X")
+                plot.SetTitleOffset(2.,"Y")
+ 
+                # Format the Canvas
                 c1 = TCanvas("c1","c1",800,600)
+                c1.SetBottomMargin(0.2)
+                c1.SetLeftMargin(0.2) 
                 c1.SetFillColor(0)
                 plot.SetFillColor(0)
                 plot.Draw()
@@ -732,27 +742,27 @@ def makeplot(cur):
                     lumiacctext="Certified: "
                     lumidelivtext="Delivered: "
                     legendtext = ""
-                    if "lastweek" in p_xrange:
-                        legendtext   ="Last week"
-                        lumitext     +="%2.8f pb^{-1}" % (TOTLUMI_LW[cur]/1e+6)
-                        lumiacctext  +="%2.8f pb^{-1}" % (TOTLUMIACC_LW[cur]/1e+6)
-                        lumidelivtext+="%2.8f pb^{-1}" % (TOTLUMIDELIV_LW[cur]/1e+6)
+                    if "lastweek" in p_xrange: 
+                        legendtext   ="#splitline{pp Collisions12}{Last week's runs"
+                        lumitext     +="%2.3f fb^{-1}" % (TOTLUMI_LW[cur]/1e+9)
+                        lumiacctext  +="%2.3f fb^{-1}" % (TOTLUMIACC_LW[cur]/1e+9)
+                        lumidelivtext+="%2.3f fb^{-1}" % (TOTLUMIDELIV_LW[cur]/1e+9)
                     elif "new" in p_xrange:
-                        legendtext   ="New runs"
-                        lumitext     +="%2.8f pb-1" % (TOTLUMI_NR[cur]/1e+6)
-                        lumiacctext  +="%2.8f pb-1" % (TOTLUMIACC_NR[cur]/1e+6)
-                        lumidelivtext+="%2.8f pb-1" % (TOTLUMIDELIV_NR[cur]/1e+6)
+                        legendtext   ="#splitline{pp Collisions12}{New runs"
+                        lumitext     +="%2.3f fb-1" % (TOTLUMI_NR[cur]/1e+9)
+                        lumiacctext  +="%2.3f fb-1" % (TOTLUMIACC_NR[cur]/1e+9)
+                        lumidelivtext+="%2.3f fb-1" % (TOTLUMIDELIV_NR[cur]/1e+9)
                     elif "tot" in p_xrange:
-                        legendtext   ="All runs"
-                        lumitext     +="%2.8f pb^{-1}" % (TOTLUMI[cur]/1e+6)
-                        lumiacctext  +="%2.8f pb^{-1}" % (TOTLUMIACC[cur]/1e+6)
-                        lumidelivtext+="%2.8f pb^{-1}" % (TOTLUMIDELIV[cur]/1e+6)
+                        legendtext   ="#splitline{pp Collisions12}{All runs"
+                        lumitext     +="%2.3f fb^{-1}" % (TOTLUMI[cur]/1e+9)
+                        lumiacctext  +="%2.3f fb^{-1}" % (TOTLUMIACC[cur]/1e+9)
+                        lumidelivtext+="%2.3f fb^{-1}" % (TOTLUMIDELIV[cur]/1e+9)
 
-                    xcoord = 0.15
+                    xcoord = 0.25
                     ycoord = 0.82
                     tex0 = TLatex(xcoord,ycoord,"CMS preliminary 2012")
                     tex0.SetNDC(kTRUE)
-                    tex0.SetTextSize(0.04)
+                    tex0.SetTextSize(0.03)
                     tex0.SetTextColor(1)
                     tex0.SetLineWidth(2)
                     tex0.Draw()
@@ -760,14 +770,17 @@ def makeplot(cur):
                     ycoord -= 0.04
                     tex0a = TLatex(xcoord,ycoord,"Integrated luminosity")
                     tex0a.SetNDC(kTRUE)
-                    tex0a.SetTextSize(0.05)
+                    tex0a.SetTextSize(0.04)
                     tex0a.SetTextColor(1)
                     tex0a.SetLineWidth(2)
                     tex0a.Draw()
 
                     if 'tot' in p_xrange:
-                        legendtext +=" until %s 2012"%(ultimate_date)
-                    ycoord -= 0.05
+                        legendtext +=" until %s 2012}"%(ultimate_date)
+                    else:
+                        legendtext +=" until %s 2012}"%(ultimate_date)
+
+                    ycoord -= 0.06
                     tex0b = TLatex(xcoord,ycoord,legendtext)
                     tex0b.SetNDC(kTRUE)
                     tex0b.SetTextSize(0.03)
@@ -776,10 +789,10 @@ def makeplot(cur):
                     tex0b.Draw()
 
                     gr3.Draw("PL")
-                    ycoord -= 0.05
+                    ycoord -= 0.06
                     tex2a = TLatex(xcoord,ycoord,lumidelivtext)
                     tex2a.SetNDC(kTRUE)
-                    tex2a.SetTextSize(0.04)
+                    tex2a.SetTextSize(0.03)
                     tex2a.SetTextColor(1)
                     tex2a.SetLineWidth(1)
                     tex2a.Draw()
@@ -787,7 +800,7 @@ def makeplot(cur):
                     ycoord -= 0.04
                     tex = TLatex(xcoord,ycoord,lumitext)
                     tex.SetNDC(kTRUE)
-                    tex.SetTextSize(0.04)
+                    tex.SetTextSize(0.03)
                     tex.SetTextColor(2)
                     tex.SetLineWidth(1)
                     tex.Draw()
@@ -796,24 +809,58 @@ def makeplot(cur):
                     ycoord -= 0.04
                     tex2 = TLatex(xcoord,ycoord,lumiacctext)
                     tex2.SetNDC(kTRUE)
-                    tex2.SetTextSize(0.04)
+                    tex2.SetTextSize(0.03)
                     tex2.SetTextColor(4)
                     tex2.SetLineWidth(1)
                     tex2.Draw()
 
-                tex3 = TLatex(0.5,0.95,TAG_NAME[cur])
+                # Text string showing scenario
+                textScenario = TAG_NAME[cur] 
+                if 'DQM: all, DCS: all on' in TAG_NAME[cur]:
+                    textScenario = "Golden Scenario"
+                if 'DQM: muon phys, DCS: muon phys' in TAG_NAME[cur]:
+                    textScenario = "Muon Physics Scenario"
+
+                tex3 = TLatex(0.5,0.95,textScenario)
                 tex3.SetNDC(kTRUE)
                 tex3.SetTextSize(0.03)
                 tex3.SetTextColor(4)
                 tex3.SetLineWidth(2)
                 tex3.Draw()
 
+                # Save a version of the plot with ALL run numbers
+                # as bin labels. It will be read out later
+                c1.Update()
+                tmp_cfile='tmp_plot_'+p_type+'_'+p_xtype+'_'+p_xrange+'_'+str(cur)+'.C'
+                if "loss" in p_type:
+                    if "run" in p_xtype:
+                        if "tot" in p_xrange:
+                            c1.Print(tmp_cfile)
+
+
+                # Revisit the Labels 
+                for ibin in range(0,nbin):
+                    if 'run' in p_xtype:
+                        if "tot" in p_xrange and not ( ibin % labelstep == 0 ) and not ( ibin == nbin-1 ):
+                            plot.GetXaxis().SetBinLabel(ibin+1,"")
+                        if "tot" in p_xrange and ( nbin - ibin < labelstep ) and not ( ibin == nbin-1 ):
+                            plot.GetXaxis().SetBinLabel(ibin+1,"")
+                    elif 'time' in p_xtype:
+                        if "tot" in p_xrange and not ( ibin % labelstep == 0 ) and not ( ibin == nbin-1 ):
+                            plot.GetXaxis().SetBinLabel(ibin+1,"")
+                        if "tot" in p_xrange and ( nbin - ibin < labelstep ) and not ( ibin == nbin-1 ):
+                            plot.GetXaxis().SetBinLabel(ibin+1,"")
+
+                plot.SetTitleOffset(2.,"X")
+                plot.SetTitleOffset(2.,"Y")
+
+
                 c1.Update()
                 pngfile='plot_'+p_type+'_'+p_xtype+'_'+p_xrange+'_'+str(cur)+'.png'
                 cfile='plot_'+p_type+'_'+p_xtype+'_'+p_xrange+'_'+str(cur)+'.C'
                 c1.Print(pngfile)
                 c1.Print(cfile)
-
+                
                 del c1
                 del plot
                 del gr1
@@ -890,6 +937,9 @@ def makesummaryplot():
     chart_tot.SetLabelOffset(-0.2,"X")
     chart_lw.SetLabelOffset(-0.2,"X")
     chart_nr.SetLabelOffset(-0.2,"X")
+    chart_tot.SetTitleOffset(2.,"X")
+    chart_lw.SetTitleOffset(2.,"X")
+    chart_nr.SetTitleOffset(2.,"X")
 
     chart_tot.SetMaximum(1.001)
     chart_lw.SetMaximum(1.001)
@@ -906,6 +956,8 @@ def makesummaryplot():
     c1 = TCanvas("c1","c1",600,800)
     c1.SetFillColor(0)
     c1.SetTopMargin(0.19)
+    #c1.SetBottomMargin(0.2)
+    #c1.SetBottomMargin(0.2)
     c1.SetGridx()
     c1.SetTicky(0)
 
@@ -928,7 +980,7 @@ def makesummaryplot():
     tex0a.SetLineWidth(2)
     tex0a.Draw()
 
-    legendtext ="All runs until %s 2012"%(ultimate_date)
+    legendtext ="#splitline{pp Collisions12}{All runs until %s 2012}"%(ultimate_date)
     ycoord -= 0.03
     tex1 = TLatex(xcoord,ycoord,legendtext)
     tex1.SetNDC(kTRUE)
@@ -937,7 +989,7 @@ def makesummaryplot():
     tex1.SetLineWidth(2)
     tex1.Draw()
 
-    lumitext ="Recorded integrated luminosity: %2.8f pb^{-1}"%(TOTLUMI[0]/1e+6)
+    lumitext ="Recorded integrated luminosity: %2.3f fb^{-1}"%(TOTLUMI[0]/1e+9)
     ycoord -= 0.03
     tex1a = TLatex(xcoord,ycoord,lumitext)
     tex1a.SetNDC(kTRUE)
@@ -969,7 +1021,7 @@ def makesummaryplot():
     tex2.SetLineWidth(2)
     tex2.Draw()
 
-    lumitext ="Recorded integrated luminosity: %2.8f pb^{-1}" % (TOTLUMI_LW[0]/1e+6)
+    lumitext ="Recorded integrated luminosity: %2.3f fb^{-1}" % (TOTLUMI_LW[0]/1e+9)
     ycoord -= 0.03
     tex2a = TLatex(xcoord,ycoord,lumitext)
     tex2a.SetNDC(kTRUE)
@@ -1001,7 +1053,7 @@ def makesummaryplot():
     tex3.SetLineWidth(2)
     tex3.Draw()
 
-    lumitext ="Recorded integrated luminosity: %2.8f pb^{-1}" % (TOTLUMI_NR[0]/1000000.)
+    lumitext ="Recorded integrated luminosity: %2.3f fb^{-1}" % (TOTLUMI_NR[0]/1000000000.)
     ycoord -= 0.03
     tex3a = TLatex(xcoord,ycoord,lumitext)
     tex3a.SetNDC(kTRUE)
@@ -1370,7 +1422,7 @@ def main():
     parser.add_option('-l','--lumicsv',dest='lumicsv',default='none',help='lumicsv file (optional), if not given luminosity taken from lumidb')
     parser.add_option('-r','--resetlumi',dest='resetlumi',action="store_true",default=False,help='lumi cache file is reset (it might be long)')
     parser.add_option('-g','--global',dest='central',action="store_true",default=False,help='set all paths for central running (to create global web pages)')
-    parser.add_option('-k','--keeprange',dest='keeprange',action="store_true",default=False,help='keep run range in runreg.cfg')
+    parser.add_option('-k','--keeprange',dest='keeprange',action="store_true",default=False,help='keep run range in runreg.cfg') 
 
     (options, args) = parser.parse_args()
 
@@ -1387,7 +1439,7 @@ def main():
     DEF_CFG=options.runregcfg
     LUMI_CSV=options.lumicsv
     LUMI_RESET=options.resetlumi
-    KEEPRUNRANGE=options.keeprange
+    KEEPRUNRANGE=options.keeprange 
 
     if GLOB:
 
@@ -1429,6 +1481,9 @@ def main():
     makesummaryplot()
     makelumilosssummaries()
     makehtmlpages()
+
+    # Delete temporary lumi loss file you dont need
+    os.system('rm tmp_plot_*')
 
     ref=REPORT[len(JSONLIST)-1]
     json_file_ref=file(ref[2],'r')
