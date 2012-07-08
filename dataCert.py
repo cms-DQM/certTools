@@ -3,8 +3,8 @@
 # 
 #
 # $Author: borrell $
-# $Date: 2012/06/22 11:40:05 $
-# $Revision: 1.6 $
+# $Date: 2012/07/07 17:28:36 $
+# $Revision: 1.7 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -52,6 +52,7 @@ class Certifier():
         self.usedbs = False
         self.dsstate = ""
         self.component = []
+        self.NoLowPU = False
 
         print "First run ", self.runmin
         print "Last run ", self.runmax
@@ -73,7 +74,10 @@ class Certifier():
             if "COMPONENT" in item[0].upper():
                 self.component = item[1].split(',')
                 print 'COMPONENT ', self.component
-                
+            if "NOLOWPU" in item[0].upper():
+                self.nolowpu = item[1]
+                print 'NoLowPU', self.nolowpu
+                        
         self.dbs_pds = self.dbs_pds_all.split(",")
 
         self.online = False
@@ -114,6 +118,10 @@ class Certifier():
                                                   .setdefault("filter", {})\
                                                   .setdefault(sys.lower(), {})\
                                                   .setdefault("status", " = %s" % value)
+# Remove low pileup runs
+        if self.nolowpu:
+            print "Removing low pile-up runs"
+            self.filter.setdefault("lowLumiStatus", "isNull OR = false")
 
         for dcs in self.dcslist:
             if dcs != "NONE":
