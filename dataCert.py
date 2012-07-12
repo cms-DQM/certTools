@@ -3,8 +3,8 @@
 # 
 #
 # $Author: borrell $
-# $Date: 2012/07/07 17:28:36 $
-# $Revision: 1.7 $
+# $Date: 2012/07/08 16:41:23 $
+# $Revision: 1.8 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -52,7 +52,7 @@ class Certifier():
         self.usedbs = False
         self.dsstate = ""
         self.component = []
-        self.NoLowPU = False
+        self.nolowpu = False
 
         print "First run ", self.runmin
         print "Last run ", self.runmax
