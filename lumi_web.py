@@ -14,6 +14,7 @@ from rrapi import RRApi, RRApiError
 SCENS=[
     ('DQM: all, DCS: all on','default','default'), 
     ('DQM: none, DCS: all on','NONE:NONE','default'),
+    ('DQM: none, DCS: none','NONE:NONE','NONE'),
     ('DQM: none, DCS: Strip on','NONE:NONE','Tibtid,TecM,TecP,Tob'),
     ('DQM: none, DCS: Pix on','NONE:NONE','Bpix,Fpix'),
     ('DQM: none, DCS: Ecal on','NONE:NONE','Ebm,Ebp,EeM,EeP'),
