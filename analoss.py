@@ -7,7 +7,7 @@ def ana(tagname, verbosityLevel):
     CUT=0.1
     tag1="LossOfIntegratedLuminosity->GetXaxis()->SetBinLabel("
     tag2="graph->SetPoint("
-    FILEPRE='plot_loss_run_tot_'
+    FILEPRE='tmp_plot_loss_run_tot_'
     
     sortedscenario=[]
     
