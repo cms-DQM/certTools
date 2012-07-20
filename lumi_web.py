@@ -39,7 +39,7 @@ SCENS=[
     ('DQM: L1t, DCS: none','L1t:GOOD','NONE'),
     ('DQM: Lumi, DCS: none','Lumi:GOOD','NONE'),
     ('DQM: e+trk, DCS: e+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP'),
-    ('DQM: cal+trk, DCS: cal+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Jmet:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP,HbheA,HbheB,HbheC,Hf'),
+    ('DQM: cal+trk, DCS: cal+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Jetmet:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP,HbheA,HbheB,HbheC,Hf'),
     ('DQM: muon phys, DCS: muon phys','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Dt:GOOD,Rpc:GOOD,Csc:GOOD,Track:GOOD,Muon:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Dtm,Dtp,Dt0,CscM,CscP,Rpc'),
 
     
@@ -261,15 +261,15 @@ def readlumi_db():
 
             try:
                 if verbosityLevel: print "Accessing LumiDB for run: "+runno
-                lumitable=commands.getoutput("lumiCalc2.py  lumibyls -r "+runno+" -b stable --norm pp8TeV -o stdout")
-                lumitable_overview=commands.getoutput("lumiCalc2.py overview -r "+runno+" -b stable --norm pp8TeV -o stdout")
+                lumitable=commands.getoutput("lumiCalc2.py  lumibyls -r "+runno+" -b stable -o stdout")
+                lumitable_overview=commands.getoutput("lumiCalc2.py overview -r "+runno+" -b stable -o stdout")
 
             except:
                 print "Problem in accessing lumidb for run:"+runno
 
             tmplumi_deliv=0.
             for line in lumitable_overview.split("\n"):
-                if 'Run' in line:
+                if 'Run' in line or '*' in line:
                     continue
                 try:
                     thelist=eval(line)
@@ -278,12 +278,10 @@ def readlumi_db():
                     print line
                     continue
 
-# it seems there is CMSSW version dependence in the output format of lumiCalc2.py
-# one case, 'run:fill', and another case, 'run' <-- be careful
-# remove these lines after syntronized
-                if len(thelist)==5 and int(thelist[0].split(':')[0])==int(runno):
-#                if len(thelist)==5 and int(thelist[0])==int(runno):
-                    tmplumi_deliv=thelist[2]
+                if len(thelist)==5 :
+                    if ':' in str(thelist[0]):
+                        if int(thelist[0].split(':')[0])==int(runno):
+                            tmplumi_deliv=thelist[2]
                 else:
                     print "ERROR 2: something wrong in lumicalc overview line, skipping it:"
                     print line
@@ -291,7 +289,7 @@ def readlumi_db():
             
             firstls=True
             for line in lumitable.split("\n"):
-                if 'Run' in line:
+                if 'Run' in line or '*' in line:
                     continue
 
                 try:
@@ -301,7 +299,7 @@ def readlumi_db():
                         print "ERROR 1: something wrong in lumicalc lumibyls line, skipping it:"
                         print line
                     continue
-                if len(thelist)==7:
+                if len(thelist)==8:
                     lsrange=thelist[1].split(":")
                     if str(thelist[6]).find("n/a") == -1:
                         try:
@@ -1099,7 +1097,9 @@ def looponscenario():
     URL  = "http://runregistry.web.cern.ch/runregistry/"
     api = RRApi(URL, debug = verbosityLevel)
     RUN_DATA = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime','lhcEnergy'], filter = { 'bfield': '> 3.7', 'runClassName': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
-    RUN_DATA_COMP = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime'], filter = {'datasetState': '= COMPLETED', 'bfield': '> 3.7', 'runClassName': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
+    #RUN_DATA_COMP = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime'], filter = {'datasetState': '= COMPLETED', 'bfield': '> 3.7', 'runClassName': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
+# datasetState is no longer working...
+    RUN_DATA_COMP = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'csv', columns = ['number','stopTime'], filter = {'bfield': '> 3.7', 'runClassName': 'Collisions12' , 'lhcEnergy': '> 3800', 'number': '>= %d AND <= %d' %(int(RUNMINCFG),int(RUNMAXCFG)) } )
 
     BEAM_ENE_ALL=[450.0,1380.0,3500.0,4000.0]
     BEAM_ENE_DEF=4000.0  
