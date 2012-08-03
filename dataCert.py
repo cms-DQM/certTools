@@ -3,8 +3,8 @@
 # 
 #
 # $Author: borrell $
-# $Date: 2012/07/08 16:41:23 $
-# $Revision: 1.8 $
+# $Date: 2012/07/12 15:23:53 $
+# $Revision: 1.9 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -136,9 +136,15 @@ class Certifier():
                                               .setdefault("filter", {})\
                                               .setdefault("online", " = true")
         else:
+            datasetQuery = ''
+            for i in self.dataset.split():                
+                datasetQuery += ' like "%s" OR' % i.split(":")[0]
             self.filter.setdefault("dataset", {})\
                                               .setdefault("filter", {})\
-                                              .setdefault("datasetName", " like %s" % self.dataset.split(":")[0])
+                                              .setdefault("datasetName", " like %s" % datasetQuery)
+#            self.filter.setdefault("dataset", {})\
+#                                              .setdefault("filter", {})\
+#                                              .setdefault("datasetName", " like %s" % self.dataset.split(":")[0])
 
         self.filter.setdefault("runNumber", ">= %d AND <= %d " %(int(self.runmin), int(self.runmax)))
         self.filter.setdefault("dataset", {})\
