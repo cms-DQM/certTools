@@ -37,38 +37,11 @@ JSON file, currently the NoDCS and NoDQM one.
 
        3. You first need to update the local disk-cache that holds all
           the luminosity information that is used to produce the
-          results. You can do that in 2 ways that will produce
-          different results.
+          results:
 
-          Method 1
-
-          This method will locally cache the information coming only
-          from the runs contained in the specified JSON file, which
-          usually must be the most inclusive available,
-          i.e. DCS-Only. This has potentially the problem that the
-          total reported delivered and recorded luminosity may not
-          match with the official one daily updated at
-          https://twiki.cern.ch/twiki/bin/view/CMSPublic/LumiPublicResults. To
-          overcome the problem and have a full information on all
-          possible delivered and recorded luminosity, independent from
-          the run list available from RR, one must use the Method2.
-          
           > python
           python>import datacert_eff as dc
           python>dc.update_disk_cache_from_file('json_2.txt')
-
-          Method 2
-
-          This method will accept a run range and, within the range,
-          will first query the lumiCalc2 script to have the full
-          overview of teh period. Then, for each and every run listed
-          in the main overview, the details are locally cache. This
-          method is fully independent from any information store in
-          RR3.
-
-          > python
-          python>import datacert_eff as dc
-          python>dc.update_disk_cache_from_range(190389, 203002)
 
    1.2 Standalone mode
 
@@ -148,7 +121,7 @@ def _update_disk_cache(run_list):
     """Read an input list @run_list and locally saves a cached copy of
     the luminosity for each run. """
 
-    NUM_THREADS = 40
+    NUM_THREADS = 20
     for run in run_list:
         while (1):
             print activeCount()
@@ -173,41 +146,14 @@ def update_disk_cache_from_file(file):
     _update_disk_cache(sorted(cert.keys()))
 
 
-def update_disk_cache_from_range(run_begin, run_end):
-    
-    """Update the local disk cache fetching all run registered in the
-    lumiCalc2 database.
-
-    For performance reasons it is much faster to first ask to
-    lumiCalc2 the overall overview of all the known runs in stable
-    beam conditions and only after gather all the information relative
-    to each of them. The approach of querying lumiCalc2 for each
-    andevery run from run_begin to run_end is much much slower, since
-    the fractions of the runs in stable beam with respect to the total
-    is minimal. """
-
-    command = "lumiCalc2.py --begin=%d --end=%d --amodetag=PROTPHYS -b stable -o stdout overview" % (run_begin, run_end)
-    run_list = []
-    pipe = os.popen(command)
-    for l in pipe.readlines():
-        if re.match("^\*", l):
-            continue
-        if re.match("^\[WARNING\]", l):
-            continue
-        if re.match('^Run:Fill.*', l):
-            continue
-        run_list.append(l.strip().split(',')[0].strip("[").strip("'").split(':')[0])
-    _update_disk_cache(run_list)
-
-
 def get_hash(ls_ranges):
     """ Generate a hash key based on the LS intervals.  """
-
+    
     to_hash = ''
     for ranges in ls_ranges:
         to_hash += '%s%s' % (ranges[0], ranges[-1])
     return sha256(to_hash).hexdigest()
-
+    
 
 def get_luminosity_cached_from_memory(run, ls_ranges, memory_cache, certified=False):
     """ Extract luminosity information from memory, if it is
@@ -249,13 +195,9 @@ def get_luminosity_cached(run, ls_ranges, memory_cache, certified=False):
             lumi_line = lumi_file.readline()
             if re.match('^\[INFO', lumi_line):
                 return (0., 0.)
-            lumi_line = lumi_line.split(',')
-            try:
-                memory_cache.setdefault(run, {}).setdefault('total', (float(lumi_line[2].strip().strip("]"))/10.**6, float(lumi_line[-1].strip().strip("]"))/10.**6))
-                return (float(lumi_line[2].strip().strip("]"))/10.**6, float(lumi_line[-1].strip().strip("]"))/10.**6)
-            except:
-                print 'ERROR: something wrong in run %s:\n %s' % (run, lumi_line)
-                return(0., 0.)
+            lumi_line = lumi_line.strip(']').strip('[').replace("'", '').split(',')
+            memory_cache.setdefault(run, {}).setdefault('total', (float(lumi_line[2])/10.**6, float(lumi_line[4])/10.**6))
+            return (float(lumi_line[2])/10.**6, float(lumi_line[4])/10.**6)
         else:
             lumi_byls = {}
             delivered_lumi_certified = 0
@@ -357,33 +299,22 @@ def compute_int_lumi(file_baseline, int_lumi, memory_cache):
     for a given scenario for ultra-fast access to it. This also avoids
     the rendering problems due to possible missing runs in some
     scenario: the incremantal luminosity _must_ be computed on the
-    largest available scenario. If we use the DCS json we inevitably
-    miss some runs, due to the requirements of the DCS only
-    scenario. This is way we loop over all runs, from the minimum up
-    to the maximum with step 1 and collect all luminosity
-    information. This procedure requires that the user had updated the
-    local cache using update_disk_cache_from_range, so that all runs
-    are covered by the local cache.  Failing to run the proper
-    cache-update function will bring the user back to the old, DCS
-    only scenario, with all the losses."""
+    largest available scenario, namely no DQM no DCS.  """
 
     full_file = open(file_baseline, 'r')
     full_file_content = [''.join(l) for l in full_file.readlines()]
     full_object = cjson.decode(full_file_content[0])
     all_del_tot_lumi = 0
     all_rec_tot_lumi = 0
-    run_list = sorted(full_object.keys())
-    for run in range(int(run_list[0]), int(run_list[-1])+1):
-        obj = full_object.get(str(run), [[1-9999]])
+    for run in sorted(full_object.keys()):
         (del_tot_lumi, rec_tot_lumi) = get_luminosity_cached_from_memory(run,
-                                                                         obj,
+                                                                         full_object[run],
                                                                          memory_cache,
-                                                                         False)
+                                                                         True)
         all_del_tot_lumi += del_tot_lumi
         all_rec_tot_lumi += rec_tot_lumi
-        int_lumi.setdefault(str(run), (all_del_tot_lumi, all_rec_tot_lumi))
-    print 'Total delivered and recorded luminosity: (%d, %d)' % (all_del_tot_lumi, all_rec_tot_lumi)
-
+        int_lumi.setdefault(run, (all_del_tot_lumi, all_rec_tot_lumi))
+    
 def analyse_scenario(file_baseline, file_selection, ROOT_file, scenario_names, memory_cache, int_lumi):
     """Analyse a specific scenario. We receive in input two json
     files, @file_baseline and @file_selection, and perform a standard
@@ -391,7 +322,7 @@ def analyse_scenario(file_baseline, file_selection, ROOT_file, scenario_names, m
     information extracted from @file_baseline.  """
 
     gDirectory.cd('/')
-
+    
     folder = '%s_vs_%s' % (scenario_names[int(re.match('json_(\d+).*', os.path.splitext(file_baseline)[0]).group(1))],
                            scenario_names[int(re.match('json_(\d+).*', os.path.splitext(file_selection)[0]).group(1))])
     gDirectory.mkdir(folder)
@@ -521,7 +452,6 @@ def makePDFs(root_file, subsystem, x_folder):
     leg.Draw();
     d.SaveAs("%s_%s.pdf" % (subsystem, x_folder))
 
-
 def main():
     gROOT.SetBatch(True)
     scenario_names = ['DQM_All_DCS_All',     # 0
@@ -592,6 +522,6 @@ def main():
         makePDFs(file, s, 'Vs_Run')
         makePDFs(file, s, 'Vs_IntLumi')
         makePDFs(file, s, 'Vs_Lumi')
-
+    
 if __name__ == '__main__':
     main()
