@@ -72,10 +72,10 @@ lista = []
 for run in runonline.split("\n"):
     if run.isdigit():
         try:
-            os.system("lumiCalc2.py -r %s -b stable delivered -o lumi.tmp" % run)
+            os.system("lumiCalc2.py -r %s -b stable overview -o lumi.tmp" % run)
             out = [ l for l in open("lumi.tmp","r")]
 #            print out[1]
-            (myrun,myls,mylumi,rest) = out[1].split(",", 3)
+            (myrun,myls,deliv,lsrange,mylumi) = out[1].split(",", 5)
             fill = int(myrun.split(":")[1])
             run = int(myrun.split(":")[0])
 #            print "Fill and run ", fill, run
