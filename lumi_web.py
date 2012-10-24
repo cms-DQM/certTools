@@ -39,7 +39,7 @@ SCENS=[
     ('DQM: L1t, DCS: none','L1t:GOOD','NONE'),
     ('DQM: Lumi, DCS: none','Lumi:GOOD','NONE'),
     ('DQM: e+trk, DCS: e+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP'),
-    ('DQM: cal+trk, DCS: cal+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Jetmet:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP,HbheA,HbheB,HbheC,Hf'),
+    ('DQM: cal+trk, DCS: cal+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Jetmet:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP,HbheA,HbheB,HbheC,Hf,Ho'),
     ('DQM: muon phys, DCS: muon phys','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Dt:GOOD,Rpc:GOOD,Csc:GOOD,Track:GOOD,Muon:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Dtm,Dtp,Dt0,CscM,CscP,Rpc'),
 
     
