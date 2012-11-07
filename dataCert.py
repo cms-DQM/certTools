@@ -2,9 +2,9 @@
 ################################################################################
 # 
 #
-# $Author: smaruyam $
-# $Date: 2012/08/03 13:58:45 $
-# $Revision: 1.11 $
+# $Author: borrell $
+# $Date: 2012/08/10 16:45:59 $
+# $Revision: 1.12 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -51,8 +51,11 @@ class Certifier():
         self.online_cfg  = "FALSE"
         self.usedbs = False
         self.dsstate = ""
+        self.useDBScache = "False"
+        self.cacheFiles = []
+        self.predefinedPD = ["/MinimumBias/Run2012A-v1/RAW","/MinimumBias/Run2012B-v1/RAW","/MinimumBias/Run2012C-v1/RAW"]
         self.component = []
-        self.nolowpu = False
+        self.nolowpu = "FALSE"
 
         print "First run ", self.runmin
         print "Last run ", self.runmax
@@ -71,6 +74,10 @@ class Certifier():
                 self.online_cfg = item[1]
             if "DSSTATE" in item[0].upper():
                 self.dsstate = item[1]
+            if "DBSCACHE" in item[0].upper():
+                self.useDBScache = item[1]
+            if "CACHEFILE" in item[0].upper():
+                self.cacheFiles = item[1].split(',')
             if "COMPONENT" in item[0].upper():
                 self.component = item[1].split(',')
                 print 'COMPONENT ', self.component
@@ -118,8 +125,7 @@ class Certifier():
                                                   .setdefault("filter", {})\
                                                   .setdefault(sys.lower(), {})\
                                                   .setdefault("status", " = %s" % value)
-# Remove low pileup runs
-        if self.nolowpu:
+        if self.nolowpu == "True":
             print "Removing low pile-up runs"
             self.filter.setdefault("lowLumiStatus", "isNull OR = false")
 
@@ -203,7 +209,7 @@ class Certifier():
             print "Printing JSON file ", json.dumps(self.cert_json)
         self.convertToOldJson()
         if self.usedbs:
-            dbsjson=get_dbsjson(self.dbs_pds_all, self.runmin, self.runmax)
+            dbsjson=get_dbsjson(self, self.dbs_pds_all, self.runmin, self.runmax)
             if self.verbose:
                 print "Printing dbsjson ", dbsjson
             for element in self.cert_old_json:
@@ -317,28 +323,40 @@ def merge_intervals2(intervals):
     result.append((a, b))
     return result
 
-def get_dbsjson(datasets, runmin, runmax):
+def get_dbsjson(self, datasets, runmin, runmax):
     unsorted={}
-
     for ds in  datasets.split(","):
-        command='dbs search --query="find run,lumi where dataset=%s and run >=%s  and run<=%s"' % (ds, runmin, runmax)
-        print command
-        (status, out) = commands.getstatusoutput(command)
-        if status: 
-            sys.stderr.write(out)
-            print "\nERROR on dbs command: %s\nHave you done cmsenv?" % command
-            sys.exit(1)
-
-        for line in out.split('\n'):
-            fields=line.split()
-            if len(fields)!=2:
-                continue
-            if fields[0].isdigit() and fields[1].isdigit():
-                run=fields[0]
-                lumi=int(fields[1])
-                if run not in unsorted.keys():
-                    unsorted[run]=[]
-                unsorted[run].append(lumi)
+        if self.useDBScache == "True" and (ds in self.predefinedPD) :
+            for cacheName in self.cacheFiles:
+                cacheFile = open(cacheName)
+                for line in cacheFile:
+                    runlumi=line.split()
+                    if len(runlumi) > 1:
+                        if runlumi[0].isdigit():
+                            run=runlumi[0]
+                            if run not in unsorted.keys():
+                                unsorted[run]=[]
+                            for lumi in runlumi[1:]:
+                                unsorted[run].append(int(lumi))
+                cacheFile.close()
+        else:
+            command='dbs search --query="find run,lumi where dataset=%s and run >=%s  and run<=%s"' % (ds, runmin, runmax)
+            print command
+            (status, out) = commands.getstatusoutput(command)
+            if status: 
+                sys.stderr.write(out)
+                print "\nERROR on dbs command: %s\nHave you done cmsenv?" % command
+                sys.exit(1)
+            for line in out.split('\n'):
+                fields=line.split()
+                if len(fields)!=2:
+                    continue
+                if fields[0].isdigit() and fields[1].isdigit():
+                    run=fields[0]
+                    lumi=int(fields[1])
+                    if run not in unsorted.keys():
+                        unsorted[run]=[]
+                    unsorted[run].append(lumi)
 
     sorted={}
     for run in unsorted.keys():
