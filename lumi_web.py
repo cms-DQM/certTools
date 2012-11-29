@@ -40,7 +40,7 @@ SCENS=[
     ('DQM: Lumi, DCS: none','Lumi:GOOD','NONE'),
     ('DQM: e+trk, DCS: e+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP'),
     ('DQM: cal+trk, DCS: cal+trk','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Es:GOOD,Track:GOOD,Egamma:GOOD,Jetmet:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Ebm,Ebp,EeM,EeP,EsM,EsP,HbheA,HbheB,HbheC,Hf,Ho'),
-    ('DQM: muon phys, DCS: muon phys','L1t:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Dt:GOOD,Rpc:GOOD,Csc:GOOD,Track:GOOD,Muon:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Dtm,Dtp,Dt0,CscM,CscP,Rpc'),
+    ('DQM: muon phys, DCS: muon phys','L1tmu:GOOD,Hlt:GOOD,Pix:GOOD,Strip:GOOD,Dt:GOOD,Rpc:GOOD,Csc:GOOD,Track:GOOD,Muon:GOOD,Lumi:GOOD','Bpix,Fpix,Tibtid,TecM,TecP,Tob,Dtm,Dtp,Dt0,CscM,CscP,Rpc'),
 
     
     ('DQM: 9 subsystem ON but NOT Hlt, DCS: default','L1t:GOOD,Pix:GOOD,Strip:GOOD,Ecal:GOOD,Hcal:GOOD,Dt:GOOD,Rpc:GOOD,Es:GOOD,Csc:GOOD','default'),
@@ -68,7 +68,7 @@ REL_LOSS=[[28,0],[29,0],[30,0],[31,0],[32,0],[33,0],[34,0],[35,0], [36,0], [37,0
 REL_LOSS_VAL=[]
 
 QF_ALL_SYS=["Muon","Jetmet","Egamma","Tracker","Rpc","Csc","Dt","Hcal","Ecal","Es","Strip","Pix","Hlt","L1t","Lumi"]
-DCS_ALL=['Bpix','Fpix','Tibtid','TecM','TecP','Tob','Ebm','Ebp','EeM','EeP','EsM','EsP','HbheA','HbheB','HbheC','Hf','Dtm','Dtp','Dt0','CscM','CscP','Rpc',"NONE"]
+DCS_ALL=['Bpix','Fpix','Tibtid','TecM','TecP','Tob','Ebm','Ebp','EeM','EeP','EsM','EsP','HbheA','HbheB','HbheC','Hf','Ho','Dtm','Dtp','Dt0','CscM','CscP','Rpc',"NONE"]
 
 HTMLDIR=""
 LUMICACHE=""
@@ -743,19 +743,19 @@ def makeplot(cur):
                     legendtext = ""
                     if "lastweek" in p_xrange: 
                         legendtext   ="#splitline{pp Collisions12}{Last week's runs"
-                        lumitext     +="%2.3f fb^{-1}" % (TOTLUMI_LW[cur]/1e+9)
-                        lumiacctext  +="%2.3f fb^{-1}" % (TOTLUMIACC_LW[cur]/1e+9)
-                        lumidelivtext+="%2.3f fb^{-1}" % (TOTLUMIDELIV_LW[cur]/1e+9)
+                        lumitext     +="%2.2f fb^{-1}" % (TOTLUMI_LW[cur]/1e+9)
+                        lumiacctext  +="%2.2f fb^{-1}" % (TOTLUMIACC_LW[cur]/1e+9)
+                        lumidelivtext+="%2.2f fb^{-1}" % (TOTLUMIDELIV_LW[cur]/1e+9)
                     elif "new" in p_xrange:
                         legendtext   ="#splitline{pp Collisions12}{New runs"
-                        lumitext     +="%2.3f fb-1" % (TOTLUMI_NR[cur]/1e+9)
-                        lumiacctext  +="%2.3f fb-1" % (TOTLUMIACC_NR[cur]/1e+9)
-                        lumidelivtext+="%2.3f fb-1" % (TOTLUMIDELIV_NR[cur]/1e+9)
+                        lumitext     +="%2.2f fb-1" % (TOTLUMI_NR[cur]/1e+9)
+                        lumiacctext  +="%2.2f fb-1" % (TOTLUMIACC_NR[cur]/1e+9)
+                        lumidelivtext+="%2.2f fb-1" % (TOTLUMIDELIV_NR[cur]/1e+9)
                     elif "tot" in p_xrange:
                         legendtext   ="#splitline{pp Collisions12}{All runs"
-                        lumitext     +="%2.3f fb^{-1}" % (TOTLUMI[cur]/1e+9)
-                        lumiacctext  +="%2.3f fb^{-1}" % (TOTLUMIACC[cur]/1e+9)
-                        lumidelivtext+="%2.3f fb^{-1}" % (TOTLUMIDELIV[cur]/1e+9)
+                        lumitext     +="%2.1f fb^{-1}" % (TOTLUMI[cur]/1e+9)
+                        lumiacctext  +="%2.1f fb^{-1}" % (TOTLUMIACC[cur]/1e+9)
+                        lumidelivtext+="%2.1f fb^{-1}" % (TOTLUMIDELIV[cur]/1e+9)
 
                     xcoord = 0.25
                     ycoord = 0.82
