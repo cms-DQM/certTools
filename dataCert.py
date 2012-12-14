@@ -2,9 +2,9 @@
 ################################################################################
 # 
 #
-# $Author: borrell $
-# $Date: 2012/08/10 16:45:59 $
-# $Revision: 1.12 $
+# $Author: smaruyam $
+# $Date: 2012/11/07 20:10:04 $
+# $Revision: 1.13 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -53,7 +53,7 @@ class Certifier():
         self.dsstate = ""
         self.useDBScache = "False"
         self.cacheFiles = []
-        self.predefinedPD = ["/MinimumBias/Run2012A-v1/RAW","/MinimumBias/Run2012B-v1/RAW","/MinimumBias/Run2012C-v1/RAW"]
+        self.predefinedPD = ["/MinimumBias/Run2012A-v1/RAW","/MinimumBias/Run2012B-v1/RAW","/MinimumBias/Run2012C-v1/RAW","/MinimumBias/Run2012D-v1/RAW"]
         self.component = []
         self.nolowpu = "FALSE"
 
