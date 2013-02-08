@@ -3,8 +3,8 @@
 # 
 #
 # $Author: smaruyam $
-# $Date: 2012/11/07 20:10:04 $
-# $Revision: 1.13 $
+# $Date: 2012/12/14 17:02:45 $
+# $Revision: 1.14 $
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
@@ -43,7 +43,11 @@ class Certifier():
         self.runmin  = CONFIG.get('Common','RUNMIN')
         self.runmax  = CONFIG.get('Common','RUNMAX')
         self.qflist  = CONFIG.get('Common','QFLAGS').split(',')
-        self.bfield  = CONFIG.get('Common','BFIELD_THR')
+
+        self.bfield_thr  = '-0.1'
+        self.bfield_min  = '-0.1'
+        self.bfield_max  = '4.1'
+
         self.dcslist = CONFIG.get('Common','DCS').split(',')
         self.jsonfile = CONFIG.get('Common','JSONFILE')
         self.beamene     = []
@@ -65,6 +69,12 @@ class Certifier():
         print "DCS flags ", self.dcslist
 
         for item in cfglist:
+            if "BFIELD_THR" in item[0].upper():
+                self.bfield_thr = item[1]
+            if "BFIELD_MIN" in item[0].upper():
+                self.bfield_min = item[1]
+            if "BFIELD_MAX" in item[0].upper():
+                self.bfield_max = item[1]
             if "BEAM_ENE" in item[0].upper():
                 self.beamene = item[1].split(',')
             if "DBS_PDS" in item[0].upper():
@@ -94,10 +104,22 @@ class Certifier():
             self.online = True
 
         try:
-            self.bfield = float(self.bfield)
+            self.bfield_min = float(self.bfield_min)
         except:
-            print "BFIELD threshold value not understood:", self.bfield
+            print "Minimum BFIELD value not understood: ", self.bfield_min
             sys.exit(1)
+        try:
+            self.bfield_max = float(self.bfield_max)
+        except:
+            print "Maximum BFIELD value not understood: ", self.bfield_max
+            sys.exit(1)
+        try:
+            self.bfield_thr = float(self.bfield_thr)
+        except:
+            print "Threshold BFIELD value not understood: ", self.bfield_thr
+            sys.exit(1)
+        if self.bfield_thr > self.bfield_min:
+            self.bfield_min = self.bfield_thr
 
         for e in range(0, len(self.beamene)):
             try:
@@ -161,7 +183,7 @@ class Certifier():
                                           .setdefault("filter", {})\
                                           .setdefault("run", {})\
                                           .setdefault("filter",{})\
-                                          .setdefault("bfield", "> %.1f" % self.bfield)
+                                          .setdefault("bfield", "> %.1f AND <  %.1f " % (self.bfield_min, self.bfield_max) )
         self.filter.setdefault("cmsActive", "isNull OR = true")
 
         for comp in self.component:
