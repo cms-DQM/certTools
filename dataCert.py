@@ -252,38 +252,41 @@ class Certifier():
         elif self.useDAS:   
             dbsjson=get_dasjson(self, self.dbs_pds_all, self.runmin, self.runmax, self.runlist)
         else:
-            print "\nERROR, no cache or DB option was selected in cfg file, please check!" 
-            sys.exit(1)
+# special case, e.g. cosmics which do not need DB or cache file
+            print "\nINFO: no cache or DB option was selected in cfg file" 
            
+        if self.useDBScache == "True" or \
+           self.usedbs or \
+           self.useDAS:
 
-        if len(dbsjson)==0: 
-            print "\nERROR, dbsjson contains no runs, please check!" 
-            sys.exit(1)
-        if self.verbose:
-            print "Printing dbsjson ", dbsjson
-        for element in self.cert_old_json:
-            combined=[]
-            dbsbad_int=invert_intervals(self.cert_old_json[element])
+            if len(dbsjson)==0: 
+                print "\nERROR, dbsjson contains no runs, please check!" 
+                sys.exit(1)
             if self.verbose:
-                print " debug: Good Lumi ", self.cert_old_json[element] 
-                print " debug:  Bad Lumi ", dbsbad_int 
-            for interval in  dbsbad_int:
-                combined.append(interval)
+                print "Printing dbsjson ", dbsjson
+            for element in self.cert_old_json:
+                combined=[]
+                dbsbad_int=invert_intervals(self.cert_old_json[element])
+                if self.verbose:
+                    print " debug: Good Lumi ", self.cert_old_json[element] 
+                    print " debug:  Bad Lumi ", dbsbad_int 
+                for interval in  dbsbad_int:
+                    combined.append(interval)
             
-            if element in dbsjson.keys():
-                if self.verbose:
-                    print " debug: Found in DBS, Run ", element, ", Lumi ", dbsjson[element]
-                dbsbad_int=invert_intervals(dbsjson[element])
-                if self.verbose:
-                    print " debug DBS: Bad Lumi ", dbsbad_int 
-            else:
-                dbsbad_int=[[1,9999]]
-            for interval in  dbsbad_int:
-                combined.append(interval)
-            combined=merge_intervals(combined)
-            combined=invert_intervals(combined) 
-            if len(combined)!=0:
-                self.cert_old_json[element]=combined 
+                if element in dbsjson.keys():
+                    if self.verbose:
+                        print " debug: Found in DBS, Run ", element, ", Lumi ", dbsjson[element]
+                    dbsbad_int=invert_intervals(dbsjson[element])
+                    if self.verbose:
+                        print " debug DBS: Bad Lumi ", dbsbad_int 
+                else:
+                    dbsbad_int=[[1,9999]]
+                for interval in  dbsbad_int:
+                    combined.append(interval)
+                combined=merge_intervals(combined)
+                combined=invert_intervals(combined) 
+                if len(combined)!=0:
+                    self.cert_old_json[element]=combined 
 
         if self.verbose:
             print json.dumps(self.cert_old_json)
@@ -313,10 +316,10 @@ class Certifier():
         js = open(self.jsonfile, 'w+')
         json.dump(self.cert_old_json, js, sort_keys=True)
         js.close()
-        if self.verbose:
-            print " "
-            print "-------------------------------------------"
-            print "Json file: %s written.\n" % self.jsonfile
+#       print json file name
+        print " "
+        print "-------------------------------------------"
+        print "Json file: %s written.\n" % self.jsonfile
         
 
 def invert_intervals(intervals,min_val=1,max_val=9999):
