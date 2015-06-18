@@ -52,8 +52,8 @@ def getRunList(minRun, save=False):
 
     if len(dcs_only)!=0:
         if save:
-#            lumiSummary = open('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions15/13TeV/DCSOnly/json_DCSONLY.txt', 'w')
-            lumiSummary = open('./json_DCSONLY.txt', 'w')
+            lumiSummary = open('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions15/13TeV/DCSOnly/json_DCSONLY.txt', 'w')
+#           lumiSummary = open('./json_DCSONLY.txt', 'w')
             json.dump(toOrdinaryJSON(dcs_only, verbose=False), lumiSummary, indent=2, sort_keys=True)
             lumiSummary.close()
     else:
