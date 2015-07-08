@@ -546,7 +546,7 @@ def get_dasjson(self, datasets, runmin, runmax, runlist):
                 foundrun = True
 
             if foundrun:
-                command='./das_client.py --query="lumi,run dataset=%s run=%s system=dbs3" --format=json --das-headers --limit=0' % (ds, runnm)
+                command='das_client.py --query="lumi,run dataset=%s run=%s system=dbs3" --format=json --das-headers --limit=0' % (ds, runnm)
 
                 print command
                 (status, out) = commands.getstatusoutput(command)
