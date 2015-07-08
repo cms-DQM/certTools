@@ -174,6 +174,9 @@ class Certifier():
         if self.nolowpu == "True":
             print "Removing low pile-up runs"
             self.filter.setdefault("lowLumiStatus", "isNull OR = false")
+        else:
+            print "Selecting ONLY low pile-up runs"
+            self.filter.setdefault("lowLumiStatus", "true")
 
         for dcs in self.dcslist:
             if dcs != "NONE":
