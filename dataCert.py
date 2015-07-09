@@ -328,9 +328,29 @@ class Certifier():
              lumiEnd = block['sectionTo']
              if self.verbose:
                  print " debug: Run ", runNum, " Lumi ", lumiStart, ", ", lumiEnd
-             old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
-             if self.verbose:
-                 print old_json[str(runNum)]
+
+# impose the selection of runs from the run list if given in cfg file 
+# (in a list of run accessed from RR) same later applied to list accessed from DAS
+             if len(self.runlist)>0:
+	        foundr = False
+	        for runinl in self.runlist:
+	           if runinl.startswith('"'):
+		      runinl = runinl[1:]
+		   if runinl.endswith('"'):
+	   	      runinl = runinl[:-1]
+	  	   if int(runNum) == int(runinl):
+		      foundr = True
+#		      print "selecting run fom the list = ", runNum, runinl
+
+  	        if foundr:
+                   old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
+                   if self.verbose:
+                      print old_json[str(runNum)]
+	     else: 
+                old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
+                if self.verbose:
+                   print old_json[str(runNum)]
+
         for block in old_json:
             temp = []
             temp = merge_intervals2(old_json[block])
