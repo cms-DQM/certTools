@@ -68,7 +68,7 @@ class Certifier():
         self.cacheFiles = []
         self.predefinedPD = ["/MinimumBias/Run2012A-v1/RAW","/MinimumBias/Run2012B-v1/RAW","/MinimumBias/Run2012C-v1/RAW","/MinimumBias/Run2012D-v1/RAW"]
         self.component = []
-        self.nolowpu = "FALSE"
+        self.nolowpu = "True"
 
         print "First run ", self.runmin
         print "Last run ", self.runmax
@@ -183,7 +183,6 @@ class Certifier():
                 self.filter.setdefault(dcs.lower()+"Ready", "isNull OR  = true")
 #                self.filter.setdefault(dcs.lower(), "isNull OR  = true")
                 if self.verbose: print dcs
-                print dcs
             
         if self.useBeamPresent == "True":
             print "Removing LS with no beam present"
@@ -231,8 +230,7 @@ class Certifier():
                                                    .setdefault("filter", {})\
                                                    .setdefault("run", {})\
                                                    .setdefault("filter",{})\
-                                                   .setdefault(comp.lower()+"Present", " = true")\
-                                                   .setdefault(comp.lower()+"Stable", " = true")
+                                                   .setdefault(comp.lower()+"Present", " = true")
 
         if len(self.dsstate):
             self.filter.setdefault("dataset", {})\
