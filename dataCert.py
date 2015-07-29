@@ -66,7 +66,7 @@ class Certifier():
         self.useBeamPresent = "False"
         self.useBeamStable = "False"
         self.cacheFiles = []
-        self.predefinedPD = ["/MinimumBias/Run2012A-v1/RAW","/MinimumBias/Run2012B-v1/RAW","/MinimumBias/Run2012C-v1/RAW","/MinimumBias/Run2012D-v1/RAW"]
+        self.predefinedPD = ["/Commissioning/Run2015A-v1/RAW","/ZeroBias/Run2015B-v1/RAW"]
         self.component = []
         self.nolowpu = "True"
 
