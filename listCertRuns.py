@@ -1,14 +1,14 @@
 from optparse import OptionParser
 from rrapi import RRApi, RRApiError
-import sys
+import sys, commands
 
 # Parse Options
 parser = OptionParser()
 parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False)
-parser.add_option("-m", "--min", dest="min", type="int", default=190456, help="Minimum run")
+parser.add_option("-m", "--min", dest="min", type="int", default=246908, help="Minimum run")
 parser.add_option("-M", "--max", dest="max", type="int", default=999999, help="Maximum run")
 parser.add_option("-g", "--group", dest="group", type="string", \
-                  default="Collisions12", \
+                  default="Collisions15", \
                   help="Group Name, for instance 'Collisions12', 'Cosmics12'")
 (options, args) = parser.parse_args()
 
@@ -90,7 +90,33 @@ runopen.sort()
 print "\n\nThere are %s %s runs in 'OPEN' state in Offline RR:" % (len(runopen), groupName)
 print " ".join(runopen)
 
+runtobecertified = runsignoff + runopen + runofflonly 
+# Check the luminosity to remove short runs
+print " ".join(runtobecertified)
+for run in runtobecertified:
+    print run
+    command='brilcalc lumi -r %s -o stdout' %run
+    if options.verbose:
+        print command
+    (status, out) = commands.getstatusoutput(command)
 
+    if status:
+        sys.stderr.write(out)
+        print "\nERROR on brilcalc command: %s\nDid you setup the variable for brilcalc?" % command
+        print "export PATH=$HOME/.local/bin:/afs/cern.ch/cms/lumi/brilconda-1.0.3/bin:$PATH"
+        sys.exit(1)
 
+    for line in open('stdout'):
+        li=line.strip()
+        if not li.startswith("#"):
+            reclumi = float(line.rpartition(',')[2])/100.
+            if options.verbose: print "Recorded lumi for run %s is %f" % (run, reclumi)
+            if (reclumi - 80.0) >= 0.0:
+                if options.verbose: print "Run is long enough"
+            else:
+                if options.verbose: print "Run %s is short and it should be removed from the certification list" %run
+                runtobecertified.remove(run)
 
+print "\n------ There are %s %s runs to be certified this week -----" % (len(runtobecertified), groupName)
+print " ".join(runtobecertified)
 
