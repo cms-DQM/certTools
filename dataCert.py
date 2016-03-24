@@ -21,6 +21,7 @@ class Certifier():
     cfg='runreg.cfg'
     OnlineRX = "%Online%ALL"
     EXCL_LS_BITS = ('jetmet','muon','egamma')
+    EXCL_RUN_BITS = ('all')
     
     def __init__(self,argv,verbose=False):
         self.verbose = verbose
@@ -54,6 +55,7 @@ class Certifier():
         self.bfield_min  = '-0.1'
         self.bfield_max  = '4.1'
 
+        self.injection  = "%"
         self.dcslist = CONFIG.get('Common','DCS').split(',')
         self.jsonfile = CONFIG.get('Common','JSONFILE')
         self.beamene     = []
@@ -80,6 +82,8 @@ class Certifier():
         print "DCS flags ", self.dcslist
 
         for item in cfglist:
+            if "INJECTION" in item[0].upper():
+                self.injection  = item[1]
             if "BFIELD_THR" in item[0].upper():
                 self.bfield_thr = item[1]
             if "BFIELD_MIN" in item[0].upper():
@@ -113,8 +117,10 @@ class Certifier():
             if "NOLOWPU" in item[0].upper():
                 self.nolowpu = item[1]
                 print 'NoLowPU', self.nolowpu
-                        
+
         self.dbs_pds = self.dbs_pds_all.split(",")
+
+        print "Injection schema ", self.injection
 
         if self.useDAS == "True":
             self.usedbs = False
@@ -167,10 +173,14 @@ class Certifier():
                 # Check if the bit is not excluded to avoide filter on LS for Egamma, Muon, JetMET
                 if len([i for i in self.EXCL_LS_BITS if i == sys.lower()]) == 0:
                     self.filter.setdefault(sys.lower()+"Status", self.qry[value])
-                self.filter.setdefault("dataset", {})\
+                # Check run flag
+                if (self.EXCL_RUN_BITS != sys.lower()):
+                    self.filter.setdefault("dataset", {})\
                                                   .setdefault("filter", {})\
                                                   .setdefault(sys.lower(), {})\
                                                   .setdefault("status", " = %s" % value)
+
+
         if self.nolowpu == "True":
             print "Removing low pile-up runs"
             self.filter.setdefault("lowLumiStatus", "isNull OR = false")
@@ -222,6 +232,13 @@ class Certifier():
                                           .setdefault("run", {})\
                                           .setdefault("filter",{})\
                                           .setdefault("bfield", "> %.1f AND <  %.1f " % (self.bfield_min, self.bfield_max) )
+
+        self.filter.setdefault("dataset", {})\
+                                          .setdefault("filter", {})\
+                                          .setdefault("run", {})\
+                                          .setdefault("filter", {})\
+                                          .setdefault("injectionScheme", " like %s " % self.injection )
+
         self.filter.setdefault("cmsActive", "isNull OR = true")
 
         for comp in self.component:
