@@ -5,10 +5,10 @@ import sys, commands
 # Parse Options
 parser = OptionParser()
 parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False)
-parser.add_option("-m", "--min", dest="min", type="int", default=246908, help="Minimum run")
+parser.add_option("-m", "--min", dest="min", type="int", default=268000, help="Minimum run")
 parser.add_option("-M", "--max", dest="max", type="int", default=999999, help="Maximum run")
 parser.add_option("-g", "--group", dest="group", type="string", \
-                  default="Collisions15", \
+                  default="Collisions16", \
                   help="Group Name, for instance 'Collisions12', 'Cosmics12'")
 (options, args) = parser.parse_args()
 
