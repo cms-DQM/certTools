@@ -25,7 +25,7 @@ def getRunList(minRun, save=False):
     except RRApiError, e:
         print e
 
-    filter = {"runNumber": ">= %d" % minRun, "dataset": {"rowClass": "org.cern.cms.dqm.runregistry.user.model.RunDatasetRowGlobal", "filter": {"online": "= true", "datasetName": "like %Online%ALL", "runClassName" : "Collisions15", "run": {"rowClass": "org.cern.cms.dqm.runregistry.user.model.RunSummaryRowGlobal", "filter": {"bfield": "> 3.7", "pixelPresent": "= true", "trackerPresent": "= true"}}}}}
+    filter = {"runNumber": ">= %d" % minRun, "dataset": {"rowClass": "org.cern.cms.dqm.runregistry.user.model.RunDatasetRowGlobal", "filter": {"online": "= true", "datasetName": "like %Online%ALL", "runClassName" : "Collisions16", "run": {"rowClass": "org.cern.cms.dqm.runregistry.user.model.RunSummaryRowGlobal", "filter": {"bfield": "> 3.7", "pixelPresent": "= true", "trackerPresent": "= true"}}}}}
 
     filter.setdefault("fpixReady", "isNull OR = true")
     filter.setdefault("bpixReady", "isNull OR = true")
@@ -50,7 +50,7 @@ def getRunList(minRun, save=False):
 
     if len(dcs_only)!=0:
         if save:
-            lumiSummary = open('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions15/13TeV/DCSOnly/json_DCSONLY_Run2015B.txt', 'w')
+            lumiSummary = open('/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/DCSOnly/json_DCSONLY.txt', 'w')
             json.dump(toOrdinaryJSON(dcs_only, verbose=False), lumiSummary, indent=2, sort_keys=True)
             lumiSummary.close()
     else:
@@ -66,5 +66,5 @@ def getRunList(minRun, save=False):
 #     return runlist
 
 # getRunList(190389, save=True)
-getRunList(251023, save=True)
+getRunList(268000, save=True)
 
