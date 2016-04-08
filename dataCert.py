@@ -233,7 +233,8 @@ class Certifier():
                                           .setdefault("filter",{})\
                                           .setdefault("bfield", "> %.1f AND <  %.1f " % (self.bfield_min, self.bfield_max) )
 
-        self.filter.setdefault("dataset", {})\
+        if self.group.startswith("Collisions"):
+            self.filter.setdefault("dataset", {})\
                                           .setdefault("filter", {})\
                                           .setdefault("run", {})\
                                           .setdefault("filter", {})\
