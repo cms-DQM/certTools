@@ -6,25 +6,48 @@
 # -- new
 
 import xmlrpclib
-import sys, os, os.path, time, re
+import os, os.path, time, re
+import argparse
+import logging
+import subprocess
+import sys
+import json
+#from optparse import OptionParser
 
-from optparse import OptionParser
 from xml.dom.minidom import parseString
-from rrapi import RRApi, RRApiError
+#from rrapi import RRApi, RRApiError
+from rhapi import RhApi
 from datetime import date, timedelta
 
-reload(sys)
-sys.setdefaultencoding('utf-8')
 
-parser = OptionParser()
-parser.add_option("-m", "--min", dest="min", type="int", default=314472, help="Minimum run")
-parser.add_option("-M", "--max", dest="max", type="int", default=999999, help="Maximum run")
-parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Print more info")
-parser.add_option("-n", "--notes", dest="notes", type="string", default="notes.txt", help="Text file with notes")
-parser.add_option("-g", "--group", dest="group", type="string", default="Collisions18", help="Text file with run list")
-parser.add_option("-a", "--allrun", dest="allrun", action="store_true", default=True, help="Show all runs in the table")
-(options, args) = parser.parse_args()
+#parser = OptionParser()
+parser = argparse.ArgumentParser(description='Make weekly certification HTML for run cordination')
 
+parser.add_argument("-m", "--min",
+        dest="min", type=int, default=314472, help="Minimum run")
+parser.add_argument("-M", "--max",
+        dest="max", type=int, default=999999, help="Maximum run")
+parser.add_argument("-v", "--verbose",
+        dest="verbose", action="store_true", default=False, help="Print more info")
+parser.add_argument("-n", "--notes",
+        dest="notes", type=str, default="notes.txt", help="Text file with notes")
+parser.add_argument("-g", "--group",
+        dest="group", type=str, default="Collisions18", help="Text file with run list")
+parser.add_argument("-a", "--allrun",
+        dest="allrun", action="store_true", default=True, help="Show all runs in the table")
+
+options = parser.parse_args()
+
+if options.verbose:
+    log_level = logging.DEBUG
+else:
+    log_level = logging.INFO
+
+logging.basicConfig(format='[%(levelname)s] [%(asctime)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S', level=log_level)
+
+#TO-DO:wtf if default is true
+logging.debug("verbose:%s" % (options.verbose))
 options.verbose = False
 
 groupName = options.group
@@ -39,21 +62,65 @@ runlist = {}
 DetWS = {'PIX': 'Tracker', 'STRIP': 'Tracker', 'ECAL': 'Ecal', 'ES': 'Ecal', \
         'HCAL': 'Hcal', 'CSC': 'Csc', 'DT': 'Dt', 'RPC': 'Rpc', 'TRACK': 'Tracker', \
         'MUON': 'Muon', 'JETMET': 'Jetmet', 'EGAMMA': 'Egamma', \
-        'HLT': 'Hlt', 'L1tmu': 'L1t', 'L1tcalo': 'L1t', 'LUMI': 'Lumi', 'CTPPS': 'ctpps'}
+        'HLT': 'Hlt', 'L1tmu': 'L1t', 'L1tcalo': 'L1t', 'LUMI': 'Lumi'}#, 'CTPPS': 'ctpps'}
 
-URL = 'http://runregistry.web.cern.ch/runregistry/'
-api = RRApi(URL, debug=True)
+#URL = 'http://runregistry.web.cern.ch/runregistry/'
+#api = RRApi(URL, debug=True)
+new_url = "http://vocms00170:2113"
+api = RhApi(new_url, debug=False)
+
+def get_bfield_events(whichRR, dataName, dsState, detPOG):
+    global groupName, runlist
+    logging.info("getting bfield and events for runs")
+
+    firstDay = str(date.today() - timedelta(days=10))
+    __query = ("select r.runnumber, r.bfield, r.events "
+            "from runreg_global.runs r where r.run_class_name like '%%%s%%' "
+            "and r.starttime >= to_date('%s','yyyy-MM-dd')") % (
+                    groupName, firstDay)
+
+    logging.debug("query to RR: %s" % (__query))
+    rr_data2 = api.json(__query)
+
+    #save bField file for now
+    #TO-DO: bfield should be JSON
+    with open("RR_bfield_new.json","w") as out_f:
+        out_f.write(json.dumps(rr_data2, indent=4))
+
+
+
+    for el in rr_data2["data"]:
+        ##Get run#
+        bfield = -1
+
+        run = str(el[0])
+        bfield = el[1]
+        events = el[2]
+
+        if run not in runlist:
+            runlist[run] = {'B': bfield}
+        if whichRR == 'GLOBAL' and dataName == 'Online':
+            runlist[run]['RR_bfield'] = float(bfield)
+            runlist[run]['RR_events'] = int(events)
+
+    runs = runlist.keys()
+    runs.sort()
+    runs.reverse()
+
+    logging.debug("list of runs: %s" % (runs))
+    logging.debug("runlist: %s" % (json.dumps(runlist)))
 
 def getRR(whichRR, dataName, dsState, detPOG):
     global groupName, runreg, runlist, options, runsel
 #    if options.verbose: print "Date of yesterday", str(date.today() - timedelta(days=1))
     firstDay = str(date.today() - timedelta(days=10))
 # test ---     firstDay = str(date.today() - timedelta(days=200))
-    sys.stderr.write("Querying %s RunRegistry for %s dataset\n" % (whichRR, dataName));
+    ##TO-DO: rewrite to logging
+    #sys.stderr.write("Querying %s RunRegistry for %s dataset\n" % (whichRR, dataName));
     if whichRR == "GLOBAL":
-        mycolumns = ['runNumber', 'datasetState']
+        mycolumns = ['run_number', 'rda_state']
     else:
-        mycolumns = ['%s' % detPOG.lower() , 'ranges', 'runNumber', 'datasetState']
+        mycolumns = ['rda_wor_name' , 'run_number', 'rda_state']
     if options.verbose:
         print mycolumns
     text = ''
@@ -61,78 +128,64 @@ def getRR(whichRR, dataName, dsState, detPOG):
     if options.verbose:
         print "Writing RR information in file %s" % fname
 ##Query RR
-    if api.app == "user":
-        print "Checking user RR"
-        text = api.data(workspace=whichRR.upper(), table='datasets', template='xml',
-                columns=mycolumns, filter={'runNumber': '%s' % runsel, 'runClassName':"like '%%%s%%'"%groupName,'datasetName': "like '%%%s%%'"%dataName},
-                tag='LATEST')
+    # if api.app == "user":
+    #     print "Checking user RR"
 
+    #     text = api.data(workspace=whichRR.upper(), table='datasets', template='xml',
+    #             columns=mycolumns, filter={'runNumber': '%s' % runsel,
+    #                                         'runClassName':"like '%%%s%%'" % groupName,
+    #                                         'datasetName': "like '%%%s%%'" % dataName},
+    #             tag='LATEST')
+
+    ##TO-DO: hope the table alias is 'r' all the time...
+    __sql_columns = []
+    for el in mycolumns:
+        __sql_columns.append("r.%s" % (el))
+
+    logging.debug("%s %s %s %s %s" % (
+                ",".join(__sql_columns), whichRR.lower(),
+                options.min, groupName, dataName))
+
+    __query = ("select %s from runreg_%s.datasets r "
+        "where r.run_number >= %s and r.run_class_name like '%%%s%%' "
+        "and r.rda_name like '%%%s%%'") % (
+                ",".join(__sql_columns), whichRR.lower(),
+                options.min, groupName, dataName)
+
+    rr_data = api.xml(__query)
     ##write xml output to file
-        log = open(fname,"w");
-        log.write(text); log.close()
+    log = open(fname,"w");
+    log.write(rr_data); log.close()
     ##Get and Loop over xml data
     dom = ''
     domP = None
-    domB = ''
+
     try:
-        dom  = parseString(text)
+        dom  = parseString(rr_data)
     except:
         ##In case of a non-Standard RR output (dom not set)
         print "Could not parse RR output"
 
-    splitRows = 'RunDatasetRow' + whichRR
-    if options.verbose:
-        print "splitRows", splitRows
 # Getting info on the Bfield and the run taken in the last 10 days
-    if whichRR == "GLOBAL":
-        text_bfield = api.data(workspace='GLOBAL', table='runsummary', template='xml',
-            columns=['number','bfield','events'], filter={"runClassName": "like '%%%s%%'"%groupName, "startTime": ">= %s" % firstDay,"datasets": {"rowClass": "org.cern.cms.dqm.runregistry.user.model.RunDatasetRowGlobal"}})
+#    if whichRR == "GLOBAL":
+        # text_bfield = api.data(workspace='GLOBAL', table='runsummary', template='xml',
+        #         columns=['number','bfield','events'], filter={
+        #             "runClassName": "like '%%%s%%'"%groupName,
+        #             "startTime": ">= %s" % firstDay,
+        #             "datasets": {"rowClass": "org.cern.cms.dqm.runregistry.user.model.RunDatasetRowGlobal"}}
+        #         )
 
-        log = open("RR_bfield.xml","w")
-        log.write(text_bfield)
-        log.close()
-        print "Problem"
-        try:
-            domB  = parseString(text_bfield)
-        except:
-        ##In case of a non-Standard RR output (dom not set)
-            print "Could not parse RR output"
-
-    if whichRR == 'GLOBAL':
-        splitRows = 'RunDatasetRowGlobal'
-    ##Protection against null return
-    if domB:
-        dataB = domB.getElementsByTagName('RunSummaryRowGlobal')
-    else:
-        dataB = []
-    for i in range(len(dataB)):
-        ##Get run#
-        bfield = -1
-        run = int(dataB[i].getElementsByTagName('number')[0].firstChild.data)
-        bfield = dataB[i].getElementsByTagName('bfield')[0].firstChild.data
-        events = dataB[i].getElementsByTagName('events')[0].firstChild
-        if events == None:
-            print "No events"
-            events = 0
-        else:
-            events = int(dataB[i].getElementsByTagName('events')[0].firstChild.data)
-        if run not in runlist:
-            runlist[run] = {'B':bfield}
-        if whichRR == 'GLOBAL' and dataName == 'Online':
-            runlist[run]['RR_bfield'] = float(bfield)
-            runlist[run]['RR_events'] = int(events)
-    runs = runlist.keys(); runs.sort(); runs.reverse()
-    print runs[0]
 
 def getCertification(det, run, runlistdet):
     global groupName, runreg, runlist, options, runsel
-    mycolumns = ['%s' % det.lower() ,'ranges','runNumber','datasetState']
-    fname = "RR_%s.%s.xml" % (det,groupName)
+    mycolumns = ['%s' % det.upper() ,'ranges','runNumber','datasetState']
+    fname = "RR_%s.%s.xml" % (det, groupName)
     if options.verbose:
         print "Reading RR information in file %s" % fname
     whichRR = DetWS.get(det)
     ##Protection against null return
-    splitRows = 'RunDatasetRow' + whichRR
+    #splitRows = 'RunDatasetRow' + whichRR
+    splitRows = 'row'
     ##Get and Loop over xml data
     log = open(fname)
     text = "\n".join([x for x in log])
@@ -149,18 +202,18 @@ def getCertification(det, run, runlistdet):
     comm = ""
     for i in range(len(data)):
         ##Get run#
-        if int(data[i].getElementsByTagName('runNumber')[0].firstChild.data) == run:
+        if int(data[i].getElementsByTagName('RUN_NUMBER')[0].firstChild.data) == run:
             if options.verbose:
                 print "---- Run ---- ", run
             mydata = data[i]
-            state = mydata.getElementsByTagName('datasetState')[0].firstChild.data
+            state = mydata.getElementsByTagName('RDA_STATE')[0].firstChild.data
             print "STATE", state
             isopen = (state  == "OPEN")
             lumis = 0
             status = mydata.getElementsByTagName(mycolumns[0])[0].getElementsByTagName('status')[0].firstChild.data
             if options.verbose:
                 print status
-            comm = (mydata.getElementsByTagName(mycolumns[0])[0].getElementsByTagName('comment')[0].toxml()).replace('<comment>','').replace('</comment>','').replace('<comment/>','')
+            comm = (mydata.getElementsByTagName(mycolumns[0])[0].getElementsByTagName('RDA_COMMENT')[0].toxml()).replace('<comment>','').replace('</comment>','').replace('<comment/>','')
             verdict = status
             if options.verbose:
                 print "  -", run, verdict
@@ -219,9 +272,15 @@ html = """
 <table>
 """ % (time.ctime(), time.ctime())
 
+#we get list of runs, their bfield and number of events
+get_bfield_events("GLOBAL", "Online", "= OPEN OR = SIGNOFF OR = COMPLETED", 'Global')
+sys.exit(-1)
+
 getRR("GLOBAL", "Online", "= OPEN OR = SIGNOFF OR = COMPLETED", 'Global')
-#listDETPOG = ['CSC','DT','ECAL','ES','HCAL','PIX','RPC','STRIP','TRACK']
-listDETPOG = ['HLT','L1tcalo','L1tmu','CSC','DT','RPC','ECAL','ES','HCAL','PIX','STRIP','TRACK','CTPPS']
+
+#current one is below
+listDETPOG = ['HLT','L1tcalo','L1tmu','CSC','DT','RPC','ECAL','ES','HCAL','PIX','STRIP','TRACK']#,'CTPPS']
+listDETPOG = ['CSC','DT','RPC','ECAL']#,'CTPPS']
 for i in range(len(listDETPOG)):
     print "--------- Checking ", listDETPOG[i]
     localws = DetWS.get(listDETPOG[i])
@@ -252,6 +311,6 @@ for r in runs:
 
 html += "</table></body></html>"
 certday = date.today().strftime("%Y%m%d")
-out = open("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/CertSummary/status.%s.html" % groupName, "w")
+out = open("status.%s.html" % groupName, "w")
 out.write(html.encode('utf-8'))
 out.close()
