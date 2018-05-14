@@ -56,20 +56,18 @@ def get_bfield_events(workspace, datasetName, runClass):
         events = el[2]
 
         if run not in runlist:
-            runlist[run] = {'B': bfield}
-        if workspace == 'GLOBAL' and datasetName == 'Online':
+            runlist[run] = {}
             runlist[run]['RR_bfield'] = float(bfield)
             runlist[run]['RR_events'] = int(events)
 
     runs = runlist.keys()
-    runs.sort()
-    runs.reverse()
+    runs.sort(reverse=True)
 
     logging.debug("list of runs: %s" % (runs))
     logging.debug("runlist: %s" % (json.dumps(runlist)))
     return runlist
 
-def getRR(min_run, datasetName, workspace, datasetClass):
+def getRR(min_run, datasetName, workspace, datasetClass, columns, file_name):
     """
     method to query RR with specified input:
     minimum run we start from
@@ -82,89 +80,59 @@ def getRR(min_run, datasetName, workspace, datasetClass):
     firstDay = str(date.today() - timedelta(days=10))
     logging.debug("firstDay: %s" % (firstDay))
 
-    if workspace.upper() == "GLOBAL":
-        mycolumns = ['run_number', 'rda_state']
-    else:
-        mycolumns = ['rda_wor_name' , 'run_number', 'rda_state']
-
     text = ''
-    fname = "RR_%s.%s_new.json" % (workspace, datasetClass)
-    logging.debug("mycolumns: %s" % (mycolumns))
+    fname = "RR_%s.%s_new.json" % (file_name, datasetClass)
+    logging.debug("mycolumns: %s" % (columns))
     logging.debug("Writing RR information in file %s" % (fname))
 
     ##TO-DO: hope the table alias is 'r' all the time...
     __sql_columns = []
 
-    for el in mycolumns:
+    for el in columns:
         __sql_columns.append("r.%s" % (el))
 
     logging.debug("%s %s %s %s %s" % (
-                ",".join(__sql_columns), workspace.lower(),
-                min_run, datasetClass, datasetName))
+            ",".join(__sql_columns), workspace.lower(),
+            min_run, datasetClass, datasetName))
 
     __query = ("select %s from runreg_%s.datasets r "
         "where r.run_number >= %s and r.run_class_name like '%%%s%%' "
         "and r.rda_name like '%%%s%%'") % (
                 ",".join(__sql_columns), workspace.lower(),
-                options.min, datasetClass, datasetName)
+                min_run, datasetClass, datasetName)
 
     logging.debug("RR query: %s" % (__query))
 
     rr_data = api.json(__query)
-    ##write xml output to file
+    rr_data = to_useful_format(rr_data)
+    ##write json output to file
     with open(fname,"w") as out_file:
         out_file.write(json.dumps(rr_data, indent=4))
 
-def getCertification(det, run, runlistdet):
-    global groupName, runreg, runlist, options, runsel
-    mycolumns = ['%s' % det.upper() ,'ranges','runNumber','datasetState']
-    fname = "RR_%s.%s.xml" % (det, groupName)
-    if options.verbose:
-        print "Reading RR information in file %s" % fname
-    whichRR = DetWS.get(det)
-    ##Protection against null return
-    #splitRows = 'RunDatasetRow' + whichRR
-    splitRows = 'row'
-    ##Get and Loop over xml data
-    log = open(fname)
-    text = "\n".join([x for x in log])
-    dom = '';
-    try:
-        dom  = parseString(text)
-    except:
-        ##In case of a non-Standard RR output (dom not set)
-        print "Could not parse RR output"
-    if dom:
-        data = dom.getElementsByTagName(splitRows)
-    else:
-        data = []
-    comm = ""
-    for i in range(len(data)):
-        ##Get run#
-        if int(data[i].getElementsByTagName('RUN_NUMBER')[0].firstChild.data) == run:
-            if options.verbose:
-                print "---- Run ---- ", run
-            mydata = data[i]
-            state = mydata.getElementsByTagName('RDA_STATE')[0].firstChild.data
-            print "STATE", state
-            isopen = (state  == "OPEN")
-            lumis = 0
-            ##TO-DO:get a global dictionary with workspace and the columns to be displayed
-            status = mydata.getElementsByTagName(mycolumns[0])[0].getElementsByTagName('status')[0].firstChild.data
-            if options.verbose:
-                print status
-            comm = (mydata.getElementsByTagName(mycolumns[0])[0].getElementsByTagName('RDA_COMMENT')[0].toxml()).replace('<comment>','').replace('</comment>','').replace('<comment/>','')
-            verdict = status
-            if options.verbose:
-                print "  -", run, verdict
-        ##Compile comments
-            comment = ""
-            if comm:
-                comment += " " + comm
-            print "----- RunList", run, isopen, verdict, comment
-            runlistdet[0] = isopen
-            runlistdet[1] = verdict
-            runlistdet[2] = comment
+    return rr_data
+
+def to_useful_format(in_data):
+    """
+    converts list of reuslt columns to key:value/result where key is run
+    """
+    new_format = {}
+    for el in in_data["data"]:
+        new_format[el[1]] = el
+
+    return new_format
+
+def get_comment(comment):
+    """
+    make subprocess curl to fetch CLOB comment data from RestHub
+    comment: comment from previous RR api call -> can be None or link to clob object
+    """
+
+    if not comment:
+        return comment
+    if comment.startswith("http"):
+        p = subprocess.Popen(["curl", "-s", comment], stdout=subprocess.PIPE)
+        out = p.communicate()[0]
+        return out
 
 def v2c(isopen,verdict):
     if isopen:
@@ -219,6 +187,7 @@ if __name__ == '__main__':
     #runsel = '>= %d and <= %d' % (options.min,options.max)
 
     runlist = {}
+    run_pog_data = {}
 
     # List of DET/POG and RR workspace name correspondence
     # DetWS = {'PIX': 'Tracker', 'STRIP': 'Tracker', 'ECAL': 'Ecal', 'ES': 'Ecal', \
@@ -239,22 +208,22 @@ if __name__ == '__main__':
                                 "DB_column": "RDA_CMP_ECAL"},
                         "ES": {"workspace": "ECAL",
                                 "DB_column": "RDA_CMP_ES"},
-                        "EGAMMA": {"workspace": "EGAMMA",
+                        "EGAMMA": {"workspace": "EGAMMA", ## TO-DO: is egamma even used?
                                 "DB_column": "RDA_CMP_EGAMMA"},
                         "HCAL": {"workspace": "HCAL",
                                 "DB_column": "RDA_CMP_HCAL"}, #this column is not displayed in userRR
                         "HLT": {"workspace": "HLT",
                                 "DB_column": "RDA_CMP_HLT"},
-                        "JETMET": {"workspace": "JETMET",
+                        "JETMET": {"workspace": "JETMET", ## TO-DO: is JETMET used?
                                 "DB_column": "RDA_CMP_JETMET"},
                         "L1TMU": {"workspace": "L1T",
                                 "DB_column": "RDA_CMP_MUON"},
                         "L1TCALO": {"workspace": "L1T",
                                 "DB_column": "RDA_CMP_JET"},
-                        "LUMI": {"workspace": "LUMI",
+                        "LUMI": {"workspace": "LUMI", ## TO-DO: is LUMI used?
                                 "DB_column": "RDA_CMP_LUMI"},
-                        "MUO": {"workspace": "MUO",
-                                "DB_column": "RDA_CMP_MUON"},
+                        "MUON": {"workspace": "MUON",
+                                "DB_column": "RDA_CMP_MUON"}, ## TO-DO: is MUON used?
                         "RPC": {"workspace": "RPC",
                                 "DB_column": "RDA_CMP_RPC"},
                         "PIX": {"workspace": "TRACKER",
@@ -268,8 +237,7 @@ if __name__ == '__main__':
     html = """
 <html>
 <head>
-<title>Certification of Collision runs recorded in the last 10 days </BR>
-(Last update on %s)</title>
+<title>Certification of Collision runs recorded in the last 10 days</title>
   <style type='text/css'>
     body { font-family: "Candara", sans-serif; }
     td.EXCL { background-color: orange; }
@@ -291,7 +259,7 @@ if __name__ == '__main__':
 (Last update on %s)</title>
 </h1>
 <table>
-""" % (time.ctime(), time.ctime())
+""" % (time.ctime())
 
     #URL = 'http://runregistry.web.cern.ch/runregistry/'
     #api = RRApi(URL, debug=True)
@@ -303,46 +271,64 @@ if __name__ == '__main__':
     runlist = get_bfield_events("GLOBAL", "Online", groupName)
 
 
-    getRR(options.min, "Online", 'Global', groupName)
-    sys.exit(-1)
+    ## TO-DO: do we need this call for Global dataset Table? -> nowhere used
+    getRR(options.min, "Online", 'Global', groupName,
+            ['run_number', 'rda_state'], 'Global')
 
     #current one is below
     listDETPOG = ['HLT','L1tcalo','L1tmu','CSC','DT','RPC','ECAL','ES','HCAL','PIX','STRIP','TRACK']#,'CTPPS']
     listDETPOG = ['CSC','DT','RPC','ECAL']#,'CTPPS']
-    sorted_list_of_POGS = ['CSC','CTPPS','DT','ECAL','ES','EGAMMA','HCAL','HLT','JETMET','L1tmu','L1tcalo','LUMI','MUON','RPC','PIX','STRIP','TRACK']
+    sorted_list_of_POGS = ['CSC','CTPPS','DT','ECAL','ES','HCAL','HLT','L1tmu','L1tcalo','RPC','PIX','STRIP','TRACK']
     # for now ignore CTPPS
     # TO-DO: add ctpps once we conclude that new API works
     # TO-DO: RR api add non mandatory variable for needed columns! Status,cause,comment
-    sorted_list_of_POGS2 = ['CSC','DT','ECAL','ES','EGAMMA','HCAL','HLT','JETMET','L1tmu','L1tcalo','LUMI','MUON','RPC','PIX','STRIP','TRACK']
-    for pog in sorted_list_of_POGS2[0]:
+    sorted_list_of_POGS2 = ['CSC','DT','ECAL','ES', 'HCAL','HLT','L1tmu','L1tcalo','RPC','PIX','STRIP','TRACK']
+    for pog in sorted_list_of_POGS2:
         logging.info("Cheking %s worspace for Express runs" % (pog))
-        getRR("%s" % pog, "Express", pog)
+        #def getRR(min_run, datasetName, workspace, datasetClass):
+        #getRR(options.min, "Online", 'Global', groupName)
+        columns = ['rda_wor_name' , 'run_number', 'rda_state']
+        db_column = map_DB_to_column[pog.upper()]['DB_column'].lower()
+        columns.append(db_column)
+        columns.append(db_column + "_comment")
+        run_pog_data[pog] = getRR(options.min, "Express",
+                map_DB_to_column[pog.upper()]["workspace"],
+                groupName, columns, pog)
+
+        #run_pog_data[pog].sort(reverse=True)
+    logging.debug("%s" % (run_pog_data))
+
     logging.info("Finished checking for express runs")
-    sys.exit(-1)
 
-    #html += "<tr><th>Run</th><th>B-field</th><th>CSC</th><th>DT</th><th>ECAL</th><th>ES</th><th>HCAL</th><th>PIX</th><th>RPC</th><th>STRIP</th><th>TRACKING</th></tr>"
-    html += "<tr><th>Run</th><th>B-field</th><th>Events</th><th>HLT</th><th>L1T calo</th><th>L1T muon</th><th>CSC</th><th>DT</th><th>RPC</th><th>ECAL</th><th>ES</th><th>HCAL</th><th>PIX</th><th>STRIP</th><th>TRACKING</th><th>CTPPS</th></tr>"
+    html += "<tr><th>Run</th><th>B-field</th><th>Events</th>"
+    for el in sorted_list_of_POGS2:
+        html += "<th>%s</th>" % (el)
+    html+= "</tr>"
+
     runs = runlist.keys()
-    runs.sort()
-    runs.reverse()
-    print "ALL RUNS: " , runs , "\n"
+    runs.sort(reverse=True)
 
-    for r in runs:
-        R = runlist[r]
+    logging.info("ALL RUNS: %s" % (runs))
+
+    for ind, r in enumerate(runs):
+        #R = runlist[r]
         html += "<tr><th>%d</th><td class='num'>%.1f T</td><td class='num'>%d</td></td>" % (r, runlist[r]['RR_bfield'], runlist[r]['RR_events'])
         All_comments = ''
-        for i in range(len(listDETPOG)):
-            localws = DetWS.get(listDETPOG[i])
-            cert = ([False,'WAIT',''])
-            getCertification("%s" % listDETPOG[i], r, cert)
-            print "---- Certification for ", listDETPOG[i] , cert
-            if options.verbose:
-                print "localws", localws
+        for pog in sorted_list_of_POGS2:
+            logging.debug("current POG: %s run_index: %s" % (pog, ind))
+            if r not in run_pog_data[pog]:
+                logging.error("POG doesn't have data. Please check run:%s pog:%s" % (r, pog))
+                cert = ([False,'WAIT',''])
+            else:
+                __isopen = run_pog_data[pog][r][2] == "OPEN"
+                __column_status = run_pog_data[pog][r][3]
+                __comment = get_comment(run_pog_data[pog][r][4])
+                cert = ([__isopen, __column_status, __comment])
+
             html += "<td class='%s'>%s</td>" % (v2c(cert[0], cert[1]), p2t(cert))
-            print v2c(cert[0],cert[1]), p2t(cert)
 
     html += "</table></body></html>"
     certday = date.today().strftime("%Y%m%d")
-    out = open("status.%s.html" % groupName, "w")
+    out = open("status_%s_new.html" % (groupName), "w")
     out.write(html.encode('utf-8'))
     out.close()
