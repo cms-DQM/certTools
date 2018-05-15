@@ -5,22 +5,17 @@
 # -- old   python RC.py --min=270000 --max=999999 --group=Collisions18 --infile=Collisions18.txt
 # -- new
 
-import xmlrpclib
-import os, os.path, time, re
-import argparse
-import logging
-import subprocess
 import sys
+import time
 import json
-#from optparse import OptionParser
-
-from xml.dom.minidom import parseString
-#from rrapi import RRApi, RRApiError
-from rhapi import RhApi
+import logging
+import argparse
+import subprocess
 from datetime import date, timedelta
 
+from rhapi import RhApi
 
-def get_bfield_events(workspace, datasetName, runClass):
+def get_bfield_events(workspace, datasetName, runClass, write_to_file):
     """
     get list of runs from specified start time containing bfield, events for them
     some doc string here
@@ -38,16 +33,19 @@ def get_bfield_events(workspace, datasetName, runClass):
                     runClass, firstDay)
 
     logging.debug("query to RR: %s" % (__query))
-    rr_data2 = api.json(__query)
+
+    try:
+        rr_data = api.json(__query)
+    except Exception as ex:
+        logging.error("Error while using RestHub API: %s" % (ex))
+        sys.exit(-1)
 
     #save bField file for now
-    #TO-DO: bfield should be JSON
-    with open("RR_bfield_new.json","w") as out_f:
-        out_f.write(json.dumps(rr_data2, indent=4))
+    if write_to_file:
+        with open("RR_bfield_new.json","w") as out_f:
+            out_f.write(json.dumps(rr_data, indent=4))
 
-
-
-    for el in rr_data2["data"]:
+    for el in rr_data["data"]:
         ##Get run#
         bfield = -1
 
@@ -67,7 +65,8 @@ def get_bfield_events(workspace, datasetName, runClass):
     logging.debug("runlist: %s" % (json.dumps(runlist)))
     return runlist
 
-def getRR(min_run, datasetName, workspace, datasetClass, columns, file_name):
+def getRR(min_run, datasetName, workspace, datasetClass, columns,
+        file_name, write_to_file):
     """
     method to query RR with specified input:
     minimum run we start from
@@ -75,7 +74,8 @@ def getRR(min_run, datasetName, workspace, datasetClass, columns, file_name):
     workspace: workspace name
     datasetClass: dataset class name Collisions18
     """
-    logging.info("getRRParams: %s %s %s %s" % (min_run, datasetName, workspace, datasetClass))
+    logging.info("getRRParams: %s %s %s %s" % (min_run, datasetName,
+            workspace, datasetClass))
 
     firstDay = str(date.today() - timedelta(days=10))
     logging.debug("firstDay: %s" % (firstDay))
@@ -103,17 +103,24 @@ def getRR(min_run, datasetName, workspace, datasetClass, columns, file_name):
 
     logging.debug("RR query: %s" % (__query))
 
-    rr_data = api.json(__query)
+    try:
+        rr_data = api.json(__query)
+    except Exception as ex:
+        logging.error("Error while using RestHub API: %s" % (ex))
+        sys.exit(-1)
+
     rr_data = to_useful_format(rr_data)
-    ##write json output to file
-    with open(fname,"w") as out_file:
-        out_file.write(json.dumps(rr_data, indent=4))
+
+    if write_to_file:
+        ## write json output to file
+        with open(fname,"w") as out_file:
+            out_file.write(json.dumps(rr_data, indent=4))
 
     return rr_data
 
 def to_useful_format(in_data):
     """
-    converts list of reuslt columns to key:value/result where key is run
+    converts list of reuslt columns to {key:[result]} where key is run
     """
     new_format = {}
     for el in in_data["data"]:
@@ -130,7 +137,7 @@ def get_comment(comment):
     if not comment:
         return comment
     if comment.startswith("http"):
-        p = subprocess.Popen(["curl", "-s", comment], stdout=subprocess.PIPE)
+        p = subprocess.Popen(["curl", "-s", "-k", comment], stdout=subprocess.PIPE)
         out = p.communicate()[0]
         return out
 
@@ -138,7 +145,10 @@ def v2c(isopen,verdict):
     if isopen:
         return 'TODO'
 
-    for X,Y in [('BAD','BAD'), ('bad','bad'), ('GOOD','GOOD'), ('TODO','TODO'), ('WAIT','WAIT'), ('Wait','Wait'),('SKIP','SKIP'),('N/A','SKIP'),('STANDBY','STANDBY'),('EXCLUDED','EXCL')]:
+    for X,Y in [('BAD','BAD'), ('bad','bad'), ('GOOD','GOOD'), ('TODO','TODO'),
+            ('WAIT','WAIT'), ('Wait','Wait'), ('SKIP','SKIP'), ('N/A','SKIP'),
+            ('STANDBY','STANDBY'), ('EXCLUDED','EXCL')]:
+
         if X in verdict:
             return Y
 
@@ -152,20 +162,24 @@ def p2t(pair):
         return verdict
 
 if __name__ == '__main__':
-    #parser = OptionParser()
-    parser = argparse.ArgumentParser(description='Make weekly certification HTML for run cordination')
+    parser = argparse.ArgumentParser(
+            description='Make weekly certification HTML for run cordination')
     parser.add_argument("-m", "--min",
-            dest="min", type=int, default=314472, help="Minimum run")
+            dest="min", type=int, default=314472,
+            help="Minimum run")
     parser.add_argument("-M", "--max",
-            dest="max", type=int, default=999999, help="Maximum run")
+            dest="max", type=int, default=999999,
+            help="Maximum run")
+    parser.add_argument("-f", "--files",
+            dest="rr_files",action="store_true", default=False,
+            help="Also store RunRegistry's api data to files")
     parser.add_argument("-v", "--verbose",
-            dest="verbose", action="store_true", default=False, help="Print more info")
-    parser.add_argument("-n", "--notes",
-            dest="notes", type=str, default="notes.txt", help="Text file with notes")
+            dest="verbose", action="store_true", default=False,
+            help="Print more info")
     parser.add_argument("-g", "--group",
-            dest="group", type=str, default="Collisions18", help="Text file with run list")
-    parser.add_argument("-a", "--allrun",
-            dest="allrun", action="store_true", default=True, help="Show all runs in the table")
+            dest="group", type=str, default="Collisions18",
+            help="Run type: Collisions/Cosmics etc.")
+
 
     options = parser.parse_args()
 
@@ -177,14 +191,7 @@ if __name__ == '__main__':
     logging.basicConfig(format='[%(asctime)s] [%(levelname)s] %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S', level=log_level)
 
-    #TO-DO:wtf if default is true
     logging.debug("verbose:%s" % (options.verbose))
-    options.verbose = False
-
-    groupName = options.group
-
-    #runsel = ""
-    #runsel = '>= %d and <= %d' % (options.min,options.max)
 
     runlist = {}
     run_pog_data = {}
@@ -234,6 +241,46 @@ if __name__ == '__main__':
                                 "DB_column": "RDA_CMP_TRACKING"},
     }
 
+    new_url = "http://vocms00170:2113"
+    new_new_url = "http://vocms0185.cern.ch:2113"
+    api = RhApi(new_url, debug=False)
+
+    #we get list of runs, their bfield and number of events
+    runlist = get_bfield_events("GLOBAL", "Online", options.group, options.rr_files)
+
+
+    ## TO-DO: do we need this call for Global dataset Table? -> nowhere used
+    getRR(options.min, "Online", 'Global', options.group,
+            ['run_number', 'rda_state'], 'Global', options.rr_files)
+
+    #current one is below
+    listDETPOG = ['HLT','L1tcalo','L1tmu','CSC','DT','RPC','ECAL',
+            'ES','HCAL','PIX','STRIP','TRACK']#,'CTPPS']
+
+    listDETPOG = ['CSC','DT','RPC','ECAL']#,'CTPPS']
+    sorted_list_of_POGS = ['CSC','CTPPS','DT','ECAL','ES','HCAL','HLT','L1tmu',
+            'L1tcalo','RPC','PIX','STRIP','TRACK']
+
+    # for now ignore CTPPS
+    # TO-DO: add ctpps once we conclude that new API works
+    # TO-DO: RR api add non mandatory variable for needed columns! Status,cause,comment
+    sorted_list_of_POGS2 = ['CSC','DT','ECAL','ES', 'HCAL','HLT','L1tmu',
+            'L1tcalo','RPC','PIX','STRIP','TRACK']
+
+    for pog in sorted_list_of_POGS2:
+        logging.info("Cheking %s worspace for Express runs" % (pog))
+        columns = ['rda_wor_name' , 'run_number', 'rda_state']
+        db_column = map_DB_to_column[pog.upper()]['DB_column'].lower()
+        columns.append(db_column)
+        columns.append(db_column + "_comment")
+        run_pog_data[pog] = getRR(options.min, "Express",
+                map_DB_to_column[pog.upper()]["workspace"],
+                options.group, columns, pog, options.rr_files)
+
+    logging.debug("%s" % (run_pog_data))
+
+    logging.info("Finished checking for express runs")
+
     html = """
 <html>
 <head>
@@ -261,45 +308,6 @@ if __name__ == '__main__':
 <table>
 """ % (time.ctime())
 
-    #URL = 'http://runregistry.web.cern.ch/runregistry/'
-    #api = RRApi(URL, debug=True)
-    new_url = "http://vocms00170:2113"
-    new_new_url = "http://vocms0185.cern.ch:2113"
-    api = RhApi(new_url, debug=False)
-
-    #we get list of runs, their bfield and number of events
-    runlist = get_bfield_events("GLOBAL", "Online", groupName)
-
-
-    ## TO-DO: do we need this call for Global dataset Table? -> nowhere used
-    getRR(options.min, "Online", 'Global', groupName,
-            ['run_number', 'rda_state'], 'Global')
-
-    #current one is below
-    listDETPOG = ['HLT','L1tcalo','L1tmu','CSC','DT','RPC','ECAL','ES','HCAL','PIX','STRIP','TRACK']#,'CTPPS']
-    listDETPOG = ['CSC','DT','RPC','ECAL']#,'CTPPS']
-    sorted_list_of_POGS = ['CSC','CTPPS','DT','ECAL','ES','HCAL','HLT','L1tmu','L1tcalo','RPC','PIX','STRIP','TRACK']
-    # for now ignore CTPPS
-    # TO-DO: add ctpps once we conclude that new API works
-    # TO-DO: RR api add non mandatory variable for needed columns! Status,cause,comment
-    sorted_list_of_POGS2 = ['CSC','DT','ECAL','ES', 'HCAL','HLT','L1tmu','L1tcalo','RPC','PIX','STRIP','TRACK']
-    for pog in sorted_list_of_POGS2:
-        logging.info("Cheking %s worspace for Express runs" % (pog))
-        #def getRR(min_run, datasetName, workspace, datasetClass):
-        #getRR(options.min, "Online", 'Global', groupName)
-        columns = ['rda_wor_name' , 'run_number', 'rda_state']
-        db_column = map_DB_to_column[pog.upper()]['DB_column'].lower()
-        columns.append(db_column)
-        columns.append(db_column + "_comment")
-        run_pog_data[pog] = getRR(options.min, "Express",
-                map_DB_to_column[pog.upper()]["workspace"],
-                groupName, columns, pog)
-
-        #run_pog_data[pog].sort(reverse=True)
-    logging.debug("%s" % (run_pog_data))
-
-    logging.info("Finished checking for express runs")
-
     html += "<tr><th>Run</th><th>B-field</th><th>Events</th>"
     for el in sorted_list_of_POGS2:
         html += "<th>%s</th>" % (el)
@@ -312,12 +320,15 @@ if __name__ == '__main__':
 
     for ind, r in enumerate(runs):
         #R = runlist[r]
-        html += "<tr><th>%d</th><td class='num'>%.1f T</td><td class='num'>%d</td></td>" % (r, runlist[r]['RR_bfield'], runlist[r]['RR_events'])
-        All_comments = ''
+        html += "<tr><th>%d</th><td class='num'>%.1f T</td><td class='num'>%d</td></td>" % (
+            r, runlist[r]['RR_bfield'], runlist[r]['RR_events'])
+
         for pog in sorted_list_of_POGS2:
             logging.debug("current POG: %s run_index: %s" % (pog, ind))
             if r not in run_pog_data[pog]:
-                logging.error("POG doesn't have data. Please check run:%s pog:%s" % (r, pog))
+                logging.error("POG doesn't have data. Please check run:%s pog:%s" % (
+                        r, pog))
+
                 cert = ([False,'WAIT',''])
             else:
                 __isopen = run_pog_data[pog][r][2] == "OPEN"
@@ -329,6 +340,6 @@ if __name__ == '__main__':
 
     html += "</table></body></html>"
     certday = date.today().strftime("%Y%m%d")
-    out = open("status_%s_new.html" % (groupName), "w")
+    out = open("status_%s_new.html" % (options.group), "w")
     out.write(html.encode('utf-8'))
     out.close()
