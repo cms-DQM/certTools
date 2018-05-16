@@ -15,7 +15,7 @@ from datetime import date, timedelta
 
 from rhapi import RhApi
 
-def get_bfield_events(workspace, datasetName, runClass, write_to_file):
+def get_bfield_events(workspace, datasetName, runClass, days, write_to_file):
     """
     get list of runs from specified start time containing bfield, events for them
     some doc string here
@@ -26,7 +26,7 @@ def get_bfield_events(workspace, datasetName, runClass, write_to_file):
     logging.info("getting bfield and events for runs")
 
     runlist = {}
-    firstDay = str(date.today() - timedelta(days=10))
+    firstDay = str(date.today() - timedelta(days=days))
     __query = ("select r.runnumber, r.bfield, r.events "
             "from runreg_global.runs r where r.run_class_name like '%%%s%%' "
             "and r.starttime >= to_date('%s','yyyy-MM-dd')") % (
@@ -42,6 +42,7 @@ def get_bfield_events(workspace, datasetName, runClass, write_to_file):
 
     #save bField file for now
     if write_to_file:
+        logging.debug("Writing RR information in file RR_bfield_new.json")
         with open("RR_bfield_new.json","w") as out_f:
             out_f.write(json.dumps(rr_data, indent=4))
 
@@ -56,7 +57,8 @@ def get_bfield_events(workspace, datasetName, runClass, write_to_file):
         if run not in runlist:
             runlist[run] = {}
             runlist[run]['RR_bfield'] = float(bfield)
-            runlist[run]['RR_events'] = int(events)
+            # some runs has None in integer field. example: 315105
+            runlist[run]['RR_events'] = int(events) if events else 0
 
     runs = runlist.keys()
     runs.sort(reverse=True)
@@ -83,7 +85,6 @@ def getRR(min_run, datasetName, workspace, datasetClass, columns,
     text = ''
     fname = "RR_%s.%s_new.json" % (file_name, datasetClass)
     logging.debug("mycolumns: %s" % (columns))
-    logging.debug("Writing RR information in file %s" % (fname))
 
     ##TO-DO: hope the table alias is 'r' all the time...
     __sql_columns = []
@@ -112,6 +113,7 @@ def getRR(min_run, datasetName, workspace, datasetClass, columns,
     rr_data = to_useful_format(rr_data)
 
     if write_to_file:
+        logging.debug("Writing RR information in file %s" % (fname))
         ## write json output to file
         with open(fname,"w") as out_file:
             out_file.write(json.dumps(rr_data, indent=4))
@@ -163,16 +165,20 @@ def p2t(pair):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-            description='Make weekly certification HTML for run cordination')
+            description='Make weekly certification HTML for run cordination',
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-m", "--min",
             dest="min", type=int, default=314472,
             help="Minimum run")
     parser.add_argument("-M", "--max",
             dest="max", type=int, default=999999,
             help="Maximum run")
+    parser.add_argument("-d", "--days",
+            dest="days", type=int, default=10,
+            help="Number of last days look for runs")
     parser.add_argument("-f", "--files",
             dest="rr_files",action="store_true", default=False,
-            help="Also store RunRegistry's api data to files")
+            help="Store RunRegistry's api data to files")
     parser.add_argument("-v", "--verbose",
             dest="verbose", action="store_true", default=False,
             help="Print more info")
@@ -196,19 +202,21 @@ if __name__ == '__main__':
     runlist = {}
     run_pog_data = {}
 
-    # List of DET/POG and RR workspace name correspondence
-    # DetWS = {'PIX': 'Tracker', 'STRIP': 'Tracker', 'ECAL': 'Ecal', 'ES': 'Ecal', \
-    #         'HCAL': 'Hcal', 'CSC': 'Csc', 'DT': 'Dt', 'RPC': 'Rpc', 'TRACK': 'Tracker', \
-    #         'MUON': 'Muon', 'JETMET': 'Jetmet', 'EGAMMA': 'Egamma', \
-    #         'HLT': 'Hlt', 'L1tmu': 'L1t', 'L1tcalo': 'L1t', 'LUMI': 'Lumi'}#, 'CTPPS': 'ctpps'}
-
     ## Definition of global map of workspaces and their representative columns in RR DB
-    # TO-DO: add global workspace and its columns
-    # TO-DO: add multiple columns for comment, cause etc.
     map_DB_to_column = {"CSC": {"workspace": "CSC",
                                 "DB_column": "RDA_CMP_CSC"},
-                        # "CTPPS": {"workspace": "CTPPS",
-                        #         "DB_column": "RDA_CMP_RP45_210"},  #CTPPS has 6 columns
+                        "RP45_210": {"workspace": "CTPPS", ## ctpps has 6 columns
+                                "DB_column": "RDA_CMP_RP45_210"},
+                        "RP45_220": {"workspace": "CTPPS",
+                                "DB_column": "RDA_CMP_RP45_220"},
+                        "RP45_CYL": {"workspace": "CTPPS",
+                                "DB_column": "RDA_CMP_RP45_CYL"},
+                        "RP56_210": {"workspace": "CTPPS",
+                                "DB_column": "RDA_CMP_RP56_210"},
+                        "RP56_220": {"workspace": "CTPPS",
+                                "DB_column": "RDA_CMP_RP56_220"},
+                        "RP56_CYL": {"workspace": "CTPPS",
+                                "DB_column": "RDA_CMP_RP56_CYL"},
                         "DT": {"workspace": "DT",
                                 "DB_column": "RDA_CMP_DT"},
                         "ECAL": {"workspace": "ECAL",
@@ -242,32 +250,18 @@ if __name__ == '__main__':
     }
 
     new_url = "http://vocms00170:2113"
-    new_new_url = "http://vocms0185.cern.ch:2113"
+    dev_url = "http://vocms0185/rhapi"
     api = RhApi(new_url, debug=False)
 
+    sorted_list_of_POGS = ['CSC', 'DT', 'ECAL', 'ES', 'HCAL', 'HLT', 'L1tmu',
+            'L1tcalo', 'RPC', 'PIX', 'STRIP', 'TRACK',
+            'RP45_210', 'RP45_220', 'RP45_CYL', 'RP56_210', 'RP56_220', 'RP56_CYL']
+
     #we get list of runs, their bfield and number of events
-    runlist = get_bfield_events("GLOBAL", "Online", options.group, options.rr_files)
+    runlist = get_bfield_events("GLOBAL", "Online", options.group,options.days,
+            options.rr_files)
 
-
-    ## TO-DO: do we need this call for Global dataset Table? -> nowhere used
-    getRR(options.min, "Online", 'Global', options.group,
-            ['run_number', 'rda_state'], 'Global', options.rr_files)
-
-    #current one is below
-    listDETPOG = ['HLT','L1tcalo','L1tmu','CSC','DT','RPC','ECAL',
-            'ES','HCAL','PIX','STRIP','TRACK']#,'CTPPS']
-
-    listDETPOG = ['CSC','DT','RPC','ECAL']#,'CTPPS']
-    sorted_list_of_POGS = ['CSC','CTPPS','DT','ECAL','ES','HCAL','HLT','L1tmu',
-            'L1tcalo','RPC','PIX','STRIP','TRACK']
-
-    # for now ignore CTPPS
-    # TO-DO: add ctpps once we conclude that new API works
-    # TO-DO: RR api add non mandatory variable for needed columns! Status,cause,comment
-    sorted_list_of_POGS2 = ['CSC','DT','ECAL','ES', 'HCAL','HLT','L1tmu',
-            'L1tcalo','RPC','PIX','STRIP','TRACK']
-
-    for pog in sorted_list_of_POGS2:
+    for pog in sorted_list_of_POGS:
         logging.info("Cheking %s worspace for Express runs" % (pog))
         columns = ['rda_wor_name' , 'run_number', 'rda_state']
         db_column = map_DB_to_column[pog.upper()]['DB_column'].lower()
@@ -309,7 +303,7 @@ if __name__ == '__main__':
 """ % (time.ctime())
 
     html += "<tr><th>Run</th><th>B-field</th><th>Events</th>"
-    for el in sorted_list_of_POGS2:
+    for el in sorted_list_of_POGS:
         html += "<th>%s</th>" % (el)
     html+= "</tr>"
 
@@ -323,7 +317,7 @@ if __name__ == '__main__':
         html += "<tr><th>%d</th><td class='num'>%.1f T</td><td class='num'>%d</td></td>" % (
             r, runlist[r]['RR_bfield'], runlist[r]['RR_events'])
 
-        for pog in sorted_list_of_POGS2:
+        for pog in sorted_list_of_POGS:
             logging.debug("current POG: %s run_index: %s" % (pog, ind))
             if r not in run_pog_data[pog]:
                 logging.error("POG doesn't have data. Please check run:%s pog:%s" % (
