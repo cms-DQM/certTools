@@ -10,7 +10,6 @@ import time
 import json
 import logging
 import argparse
-import subprocess
 from datetime import date, timedelta
 
 from rhapi import RhApi
@@ -105,7 +104,7 @@ def getRR(min_run, datasetName, workspace, datasetClass, columns,
     logging.debug("RR query: %s" % (__query))
 
     try:
-        rr_data = api.json(__query)
+        rr_data = api.json(__query, inline_clobs=True)
     except Exception as ex:
         logging.error("Error while using RestHub API: %s" % (ex))
         sys.exit(-1)
@@ -129,19 +128,6 @@ def to_useful_format(in_data):
         new_format[el[1]] = el
 
     return new_format
-
-def get_comment(comment):
-    """
-    make subprocess curl to fetch CLOB comment data from RestHub
-    comment: comment from previous RR api call -> can be None or link to clob object
-    """
-
-    if not comment:
-        return comment
-    if comment.startswith("http"):
-        p = subprocess.Popen(["curl", "-s", "-k", comment], stdout=subprocess.PIPE)
-        out = p.communicate()[0]
-        return out
 
 def v2c(isopen,verdict):
     if isopen:
@@ -327,7 +313,7 @@ if __name__ == '__main__':
             else:
                 __isopen = run_pog_data[pog][r][2] == "OPEN"
                 __column_status = run_pog_data[pog][r][3]
-                __comment = get_comment(run_pog_data[pog][r][4])
+                __comment = run_pog_data[pog][r][4]
                 cert = ([__isopen, __column_status, __comment])
 
             html += "<td class='%s'>%s</td>" % (v2c(cert[0], cert[1]), p2t(cert))
