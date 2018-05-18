@@ -129,6 +129,44 @@ def to_useful_format(in_data):
 
     return new_format
 
+def the_ctpps_special(in_data):
+    """
+    parse ctpps data for 6 columns and aggregate to one info field:
+    ("RP45_210" == 'GOOD' or "RP45_220" == 'GOOD' or "RP45_CYL" == 'GOOD')
+    and
+    ("RP56_210" == 'GOOD' or "RP56_220" == 'GOOD' or "RP56_CYL" == 'GOOD')
+
+    also concat all comments to single field.
+    return data of single POG: CTPPS
+    """
+    ## TO-DO: hope ctpps doesn't add new columns or change the column order
+    __ctpps_data = {}
+    #iterate over all runs
+    for el in in_data:
+        all_ctpps_comments = ""
+        statuses = []
+        #move the workspace_name, run_num, dataset_state
+        __ctpps_data[el] = [in_data[el][0], in_data[el][1], in_data[el][2]]
+
+        for i in xrange(3, 15):
+            if i%2 == 0:
+                #its a comment
+                if in_data[el][i]:
+                    all_ctpps_comments += "%s\n" % (in_data[el][i])
+            else:
+                #its a status
+                statuses.append(in_data[el][i])
+
+        if ('GOOD' in statuses[:3]) and ('GOOD' in statuses[3:]):
+            __ctpps_data[el].append('GOOD')
+        else:
+            logging.debug("ctpps column set to BAD")
+            __ctpps_data[el].append('BAD')
+
+        __ctpps_data[el].append(all_ctpps_comments)
+
+    return __ctpps_data
+
 def v2c(isopen,verdict):
     if isopen:
         return 'TODO'
@@ -191,18 +229,11 @@ if __name__ == '__main__':
     ## Definition of global map of workspaces and their representative columns in RR DB
     map_DB_to_column = {"CSC": {"workspace": "CSC",
                                 "DB_column": "RDA_CMP_CSC"},
-                        "RP45_210": {"workspace": "CTPPS", ## ctpps has 6 columns
-                                "DB_column": "RDA_CMP_RP45_210"},
-                        "RP45_220": {"workspace": "CTPPS",
-                                "DB_column": "RDA_CMP_RP45_220"},
-                        "RP45_CYL": {"workspace": "CTPPS",
-                                "DB_column": "RDA_CMP_RP45_CYL"},
-                        "RP56_210": {"workspace": "CTPPS",
-                                "DB_column": "RDA_CMP_RP56_210"},
-                        "RP56_220": {"workspace": "CTPPS",
-                                "DB_column": "RDA_CMP_RP56_220"},
-                        "RP56_CYL": {"workspace": "CTPPS",
-                                "DB_column": "RDA_CMP_RP56_CYL"},
+                        "CTPPS": {"workspace": "CTPPS", # ctpps has 6 columns
+                                "DB_column": ["RDA_CMP_RP45_210", "RDA_CMP_RP45_220",
+                                        "RDA_CMP_RP45_CYL", "RDA_CMP_RP56_210",
+                                        "RDA_CMP_RP56_220", "RDA_CMP_RP56_CYL"]
+                                },
                         "DT": {"workspace": "DT",
                                 "DB_column": "RDA_CMP_DT"},
                         "ECAL": {"workspace": "ECAL",
@@ -239,9 +270,8 @@ if __name__ == '__main__':
     dev_url = "http://vocms0185/rhapi"
     api = RhApi(new_url, debug=False)
 
-    sorted_list_of_POGS = ['CSC', 'DT', 'ECAL', 'ES', 'HCAL', 'HLT', 'L1tmu',
-            'L1tcalo', 'RPC', 'PIX', 'STRIP', 'TRACK',
-            'RP45_210', 'RP45_220', 'RP45_CYL', 'RP56_210', 'RP56_220', 'RP56_CYL']
+    sorted_list_of_POGS = ['CSC', 'CTPPS', 'DT', 'ECAL', 'ES', 'HCAL', 'HLT', 'L1tmu',
+            'L1tcalo', 'RPC', 'PIX', 'STRIP', 'TRACK']
 
     #we get list of runs, their bfield and number of events
     runlist = get_bfield_events("GLOBAL", "Online", options.group,options.days,
@@ -250,12 +280,24 @@ if __name__ == '__main__':
     for pog in sorted_list_of_POGS:
         logging.info("Cheking %s worspace for Express runs" % (pog))
         columns = ['rda_wor_name' , 'run_number', 'rda_state']
-        db_column = map_DB_to_column[pog.upper()]['DB_column'].lower()
-        columns.append(db_column)
-        columns.append(db_column + "_comment")
-        run_pog_data[pog] = getRR(options.min, "Express",
-                map_DB_to_column[pog.upper()]["workspace"],
-                options.group, columns, pog, options.rr_files)
+        if pog != "CTPPS":
+            db_column = map_DB_to_column[pog.upper()]['DB_column'].lower()
+            columns.append(db_column)
+            columns.append(db_column + "_comment")
+            run_pog_data[pog] = getRR(options.min, "Express",
+                    map_DB_to_column[pog.upper()]["workspace"],
+                    options.group, columns, pog, options.rr_files)
+
+        else:
+            for col in map_DB_to_column[pog.upper()]['DB_column']:
+                columns.append(col.lower())
+                columns.append(col.lower() + "_comment")
+
+            ctpps_data = getRR(options.min, "Express",
+                    map_DB_to_column[pog.upper()]["workspace"],
+                    options.group, columns, pog, options.rr_files)
+
+            run_pog_data[pog] = the_ctpps_special(ctpps_data)
 
     logging.debug("%s" % (run_pog_data))
 
