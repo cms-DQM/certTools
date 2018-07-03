@@ -283,7 +283,6 @@ def calculate_exclusive_losses():
         __2nd_file = 0
         for j, el2 in enumerate(__detector_index):
             # if its first iteration: we take first file from
-            # totloss[DETECTOR] -> from previous loop
             if el2 == 'Mixed':
                 continue
 
@@ -325,36 +324,6 @@ def calculate_exclusive_losses():
     for file in os.listdir(directory):
         if file.startswith("lossdet"):
             os.remove("%s/%s" % (directory, file))
-
-    # logging.info("For all other subdetectors exclude losses from others")
-    # # we do same thing for POG
-    # for i in xrange(8, 16):
-    #     if i == 11:
-    #         continue
-    #     __2nd_file = 0
-    #     for j in xrange(8, 16):
-    #         if j == i:
-    #             continue
-    #         # if it is mixed category we ignore
-    #         if j == 11:
-    #             continue
-    #         __2nd_file += 1
-    #         # if its first file in loop we take other input
-    #         if __2nd_file <= 1:
-    #             f1 = "tempexcloss%s.txt" % (__detector_index[i])
-    #         else:
-    #             # -1 so we take previously generated file
-    #             f1 = "tempexclossdet%s%s.txt" % (i, __2nd_file-1)
-
-    #         f2 = "tempexcloss%s.txt" % (__detector_index[j])
-    #         f3 = "tempexclossdet%s%s.txt" % (i, __2nd_file)
-    #         run_compareJSON(directory, f1, f2, f3)
-
-    #     logging.debug("Exclusive data loss for %s is %s " % (
-    #             __detector_index[i], "excloss%s.txt" % (__detector_index[i])))
-
-    #     move(os.path.join(directory, f3),
-    #             os.path.join(directory, "excloss%s.txt" % (__detector_index[i])))
 
 def calculate_mixed_losses():
     """
@@ -421,6 +390,7 @@ def calculate_exclussie_loss_by_run():
 def calculate_trk_HV_losses():
     #Calculate Losses for tracker HV transition
     logging.info("Calculating TRK_HV losses")
+    fname = "exclumilostbyTRK_HVByRunLoss.txt"
     lumilostbyTRK_HV = get_brilcalc_lumi(os.path.join(directory, "json_TRKOff.txt"))
     lumiout = float(lumilostbyTRK_HV[brilcalc_index].split(",")[-1])
 
@@ -429,6 +399,16 @@ def calculate_trk_HV_losses():
         computed_lumi = 0.001 * 0.001 * lumiout
     else:
         computed_lumi = 0.0
+
+    with open((os.path.join(directory, fname)), "wb") as f:
+            f.write("%s" % ("\n".join(parse_brilshit_to_run_recorded(lumilostbyTRK_HV))))
+
+    jinja2_data = {'det_name': 'TK_HV',
+            'exclusive_fname': fname, 'exclusive_value': computed_lumi,
+            # some fake data
+            'inclusive_value': 0.0, 'inclusive_fname': 'FAKE'}
+
+    data_to_render["part2"].append(jinja2_data)
 
     logging.debug("Computed lumi for Tracker HV transition %s" % (computed_lumi))
     __exclusive_detector_losses["TK_HV"] = computed_lumi

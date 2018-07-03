@@ -54,7 +54,7 @@
                         {%- for item in part2 %}
                         <tr>
                             <td style="padding: 5px;">{{ item.det_name }}</td>
-                            {%- if item.det_name == "Mixed" %}
+                            {%- if item.det_name == "Mixed" or item.det_name == "TK_HV" %}
                                 <td style="padding: 5px;">--</td>
                             {%- else %}
                                 <td style="padding: 5px;">
