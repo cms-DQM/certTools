@@ -30,6 +30,7 @@ def get_brilcalc_lumi(in_file):
 
     #bricalc has normtag parameters added
     if args.normtag:
+        logging.info("Adding normtag values to brilcalc")
         __args.append("--without-checkjson")
         __args.append("--normtag")
         __args.append("/cvmfs/cms-bril.cern.ch/cms-lumi-pog/Normtags/normtag_PHYSICS.json")
@@ -449,7 +450,11 @@ if __name__ == '__main__':
     parser.add_argument('--exclude', nargs='+', dest='exclude_runs',
             help='Spaced list of runs to be excluded')
     parser.add_argument('--normtag',  dest='normtag', action='store_true',
-            help='Include normtg option to brilcalc')
+            default=False, help='Include normtg option to brilcalc')
+    parser.add_argument('--hv',  dest='highvoltage', action='store_true',
+            default=False, help='Calculate losses for high voltage only')
+    parser.add_argument('--dqm_only',  dest='dqm_only', action='store_true',
+            default=False, help='Calculate losses for DQM only')
     parser.add_argument("-v", "--verbose",
             dest="verbose", action="store_true", default=False,
             help="Print more info")
@@ -499,6 +504,9 @@ if __name__ == '__main__':
             __first_run, __last_run))
 
     logging.info("list of analysed runs: %s" % (sorted(__json2_file.keys())))
+
+    with open(os.path.join(directory, 'analysed_runs.txt'), 'w') as runs_f2:
+        f2.write(json.dumps(sorted(__json2_file.keys()), indent=4))
 
     total_lumiloss = get_total_lumi_lost()
     calculate_delivered_lumi_and_eff(total_lumiloss)
