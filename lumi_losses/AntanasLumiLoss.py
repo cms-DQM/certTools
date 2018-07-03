@@ -281,9 +281,11 @@ def calculate_exclusive_losses():
         if el == 'Mixed':
             continue
         __2nd_file = 0
-        for j in xrange(8):
+        for j, el2 in enumerate(__detector_index):
             # if its first iteration: we take first file from
             # totloss[DETECTOR] -> from previous loop
+            if el2 == 'Mixed':
+                continue
 
             if j == i:
                 # we dont check itself
@@ -309,11 +311,12 @@ def calculate_exclusive_losses():
         run_compareJSON(directory, f3, "json_TRKOff.txt", f3)
 
         # do some useless movement
-        if i < 8:
+        if i < 16:
             logging.debug("mv %s excloss%s.txt" % (f3, __detector_index[i]))
             move(os.path.join(directory, f3),
                     os.path.join(directory,"excloss%s.txt" % (__detector_index[i])))
         else:
+            logging.info("code which is not executed")
             logging.debug("mv %s tempexcloss%s.txt" % (f3, __detector_index[i]))
             move(os.path.join(directory, f3),
                     os.path.join(directory, "tempexcloss%s.txt" % (__detector_index[i])))
@@ -323,35 +326,35 @@ def calculate_exclusive_losses():
         if file.startswith("lossdet"):
             os.remove("%s/%s" % (directory, file))
 
-    logging.info("For all other subdetectors exclude losses from others")
-    # we do same thing for POG
-    for i in xrange(8, 16):
-        if i == 11:
-            continue
-        __2nd_file = 0
-        for j in xrange(8, 16):
-            if j == i:
-                continue
-            # if it is mixed category we ignore
-            if j == 11:
-                continue
-            __2nd_file += 1
-            # if its first file in loop we take other input
-            if __2nd_file <= 1:
-                f1 = "tempexcloss%s.txt" % (__detector_index[i])
-            else:
-                # -1 so we take previously generated file
-                f1 = "tempexclossdet%s%s.txt" % (i, __2nd_file-1)
+    # logging.info("For all other subdetectors exclude losses from others")
+    # # we do same thing for POG
+    # for i in xrange(8, 16):
+    #     if i == 11:
+    #         continue
+    #     __2nd_file = 0
+    #     for j in xrange(8, 16):
+    #         if j == i:
+    #             continue
+    #         # if it is mixed category we ignore
+    #         if j == 11:
+    #             continue
+    #         __2nd_file += 1
+    #         # if its first file in loop we take other input
+    #         if __2nd_file <= 1:
+    #             f1 = "tempexcloss%s.txt" % (__detector_index[i])
+    #         else:
+    #             # -1 so we take previously generated file
+    #             f1 = "tempexclossdet%s%s.txt" % (i, __2nd_file-1)
 
-            f2 = "tempexcloss%s.txt" % (__detector_index[j])
-            f3 = "tempexclossdet%s%s.txt" % (i, __2nd_file)
-            run_compareJSON(directory, f1, f2, f3)
+    #         f2 = "tempexcloss%s.txt" % (__detector_index[j])
+    #         f3 = "tempexclossdet%s%s.txt" % (i, __2nd_file)
+    #         run_compareJSON(directory, f1, f2, f3)
 
-        logging.debug("Exclusive data loss for %s is %s " % (
-                __detector_index[i], "excloss%s.txt" % (__detector_index[i])))
+    #     logging.debug("Exclusive data loss for %s is %s " % (
+    #             __detector_index[i], "excloss%s.txt" % (__detector_index[i])))
 
-        move(os.path.join(directory, f3),
-                os.path.join(directory, "excloss%s.txt" % (__detector_index[i])))
+    #     move(os.path.join(directory, f3),
+    #             os.path.join(directory, "excloss%s.txt" % (__detector_index[i])))
 
 def calculate_mixed_losses():
     """
@@ -506,7 +509,7 @@ if __name__ == '__main__':
     logging.info("list of analysed runs: %s" % (sorted(__json2_file.keys())))
 
     with open(os.path.join(directory, 'analysed_runs.txt'), 'w') as runs_f2:
-        f2.write(json.dumps(sorted(__json2_file.keys()), indent=4))
+        runs_f2.write(json.dumps(sorted(__json2_file.keys()), indent=4))
 
     total_lumiloss = get_total_lumi_lost()
     calculate_delivered_lumi_and_eff(total_lumiloss)
