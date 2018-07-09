@@ -174,6 +174,8 @@ if __name__ == '__main__':
             help="Maximum run")
     parser.add_argument("-g", "--group", dest="group", type=str,
             default="Collisions18", help="Run class type: Collisions17/Cosmics18 etc.")
+    parser.add_argument("--sendmail", dest="send_mail", action="store_true",
+            default=True, help="Send email with run list")
 
     options = parser.parse_args()
 
@@ -328,4 +330,5 @@ if __name__ == '__main__':
                     " ".join([str(run) for run in __runs_tobe_certified]),
                     cert_deadline.strftime("%Y-%m-%d"),)
 
-    sendMail(msg, EMAIL_SUBJECT)
+    if options.send_mail
+        sendMail(msg, EMAIL_SUBJECT)
