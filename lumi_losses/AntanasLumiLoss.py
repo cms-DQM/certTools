@@ -96,9 +96,19 @@ def get_total_lumi_lost():
     get total lumi_lost from json_0 and json_2
     """
     # Creating the JSON file with all the losses
+    if args.highvoltage:
+        file1 = "json_2.txt"
+        file2 = "json_1.txt"
+    elif args.dqm_only:
+        file1 = "json_1.txt"
+        file2 = "json_0.txt"
+    else:
+        file1 = "json_2.txt"
+        file2 = "json_0.txt"
+
     p = subprocess.Popen(["compareJSON.py", "--sub",
-            os.path.join(directory, "json_2.txt"),
-            os.path.join(directory, "json_0.txt"),
+            os.path.join(directory, file1),
+            os.path.join(directory, file2),
             os.path.join(directory, "totlosses.txt")],
             stdout=subprocess.PIPE)
 
@@ -216,7 +226,14 @@ def total_lumi_loss_by_run():
     """
     logging.info("Calculating total lumi loss by Run")
 
-    for i in xrange(16):
+    if args.highvoltage:
+        det_range = range(8)
+    elif args.dqm_only:
+        det_range = range(13)
+    else:
+        det_range = range(16)
+
+    for i in det_range:
         __computed_lumi = 0
         if __detector_index[i] != "Mixed":
             file1 = "totlosses.txt"
@@ -273,15 +290,19 @@ def calculate_exclusive_losses():
     """
     calculate exclusive losses by running compareJSON to all files expect itself
     """
-    logging.info("For first 8 subdetectors exclude losses from others")
+    logging.info("Exclude losses from other subdetectors")
     # example: DT-(all others in definition)
-    for i, el in enumerate(__detector_index):
+    __range = __detector_index
+    if args.highvoltage:
+        __range = __detector_index[:8]
+
+    for i, el in enumerate(__range):
         ## we skip Mixed directory for strange reasons
         # TO-DO: remove Mixed from the list/add it to the end
         if el == 'Mixed':
             continue
         __2nd_file = 0
-        for j, el2 in enumerate(__detector_index):
+        for j, el2 in enumerate(__range):
             # if its first iteration: we take first file from
             if el2 == 'Mixed':
                 continue
@@ -310,7 +331,7 @@ def calculate_exclusive_losses():
         run_compareJSON(directory, f3, "json_TRKOff.txt", f3)
 
         # do some useless movement
-        if i < 16:
+        if i < len(__range):
             logging.debug("mv %s excloss%s.txt" % (f3, __detector_index[i]))
             move(os.path.join(directory, f3),
                     os.path.join(directory,"excloss%s.txt" % (__detector_index[i])))
@@ -330,14 +351,20 @@ def calculate_mixed_losses():
     get mixed losses by taking totlosses for input
     """
     logging.info("Calculating Mixed category")
-    for i in xrange(16):
+    if args.highvoltage:
+        det_range = range(8)
+    else:
+        det_range = range(len(__detector_index))
+
+    for i in det_range:
         # skip mixed itself
-        if i == 11:
+        if __detector_index[i] == "Mixed":
             continue
+
         if i < 1:
             file1 = "totlosses.txt"
         else:
-            if i == 12:
+            if __detector_index[i-1] == "Mixed":
                 file1 = "mixloss%s.txt" % (i - 2)
             else:
                 file1 = "mixloss%s.txt" % (i - 1)
@@ -345,8 +372,10 @@ def calculate_mixed_losses():
         file2 = "excloss%s.txt"  % (__detector_index[i])
         file3 = "mixloss%s.txt" % (i)
         run_compareJSON(directory, file1, file2, file3)
-
-    run_compareJSON(directory, "mixloss15.txt", "json_TRKOff.txt", "exclossMixed.txt")
+    if args.dqm_only:
+        run_compareJSON(directory, "mixloss12.txt", "json_TRKOff.txt", "exclossMixed.txt")
+    else:
+        run_compareJSON(directory, "mixloss15.txt", "json_TRKOff.txt", "exclossMixed.txt")
 
 def calculate_exclussie_loss_by_run():
     """
@@ -354,7 +383,12 @@ def calculate_exclussie_loss_by_run():
     """
     logging.info("Use brilcalc for exclusive losses and save info to files")
 
-    for i in xrange(16):
+    internal_range = range(len(__detector_index))
+    if args.highvoltage:
+        internal_range = range(8)
+
+    logging.debug("INTERNAL RANGE:%s" % (internal_range))
+    for i in internal_range:
 
         __lumiout = 0.0
         out_fname = "excloss%s.txt" % (__detector_index[i])
@@ -455,8 +489,19 @@ if __name__ == '__main__':
     data_to_render = {"part1": {}, "part2": []}
     lumi_loss_data = []
     __exclusive_detector_losses = {}
-    __detector_fnames = [9, 8, 19, 20, 18, 22, 10, 21, 23, 24, 25, 99, 13, 12, 11, 14]
-    __detector_index = ['CSC', 'DT', 'ECAL', 'ES', 'HCAL', 'Pix', 'RPC', 'Strip',
+
+    if args.highvoltage:
+        __detector_fnames = [9, 8, 5, 6, 7, 4, 10, 3, 23, 24, 25, 99, 13, 12, 11, 14]
+        __detector_index = ['CSC', 'DT', 'ECAL', 'ES', 'HCAL', 'Pix', 'RPC', 'Strip',
+            'HLT', 'L1t', 'Lumi', 'Mixed', 'Egamma', 'JetMET', 'Muon', 'Track']
+    elif args.dqm_only:
+        __detector_fnames = [19, 20, 18, 22, 21, 23, 24, 25, 99, 13, 12, 11, 14]
+        __detector_index = ['ECAL', 'ES', 'HCAL', 'Pix', 'Strip', 'HLT', 'L1t',
+            'Lumi', 'Mixed', 'Egamma', 'JetMET', 'Muon', 'Track']
+    else:
+        # default
+        __detector_fnames = [9, 8, 19, 20, 18, 22, 10, 21, 23, 24, 25, 99, 13, 12, 11, 14]
+        __detector_index = ['CSC', 'DT', 'ECAL', 'ES', 'HCAL', 'Pix', 'RPC', 'Strip',
             'HLT', 'L1t', 'Lumi', 'Mixed', 'Egamma', 'JetMET', 'Muon', 'Track']
 
     current_year = datetime.datetime.today().year
@@ -511,7 +556,9 @@ if __name__ == '__main__':
     run_compareJSON(directory, "json_StripOff.txt", "json_PixOff.txt",
             "json_TRKOff.txt", "--and")
 
-    calculate_exclusive_losses()
+    if args.highvoltage == False or args.dqm_only == False:
+        calculate_exclusive_losses()
+
     calculate_mixed_losses()
     calculate_exclussie_loss_by_run()
     calculate_trk_HV_losses()
