@@ -68,7 +68,7 @@ class Certifier():
         self.useBeamPresent = "False"
         self.useBeamStable = "False"
         self.cacheFiles = []
-        self.predefinedPD = ["/Commissioning/Run2015A-v1/RAW","/ZeroBias/Run2015B-v1/RAW"]
+        self.predefinedPD = ["/Commissioning/Run2015A-v1/RAW","/ZeroBias/Run2015B-v1/RAW","/ZeroBias/Run2016B-v1/RAW"]
         self.component = []
         self.nolowpu = "True"
 
@@ -289,6 +289,7 @@ class Certifier():
 
         dbsjson={}
         if self.useDBScache == "True":
+            print "use cache"
             dbsjson=get_cachejson(self, self.dbs_pds_all) 
         elif self.usedbs:
             dbsjson=get_dbsjson(self, self.dbs_pds_all, self.runmin, self.runmax, self.runlist)
