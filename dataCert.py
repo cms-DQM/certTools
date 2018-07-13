@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 ################################################################################
-# 
+#
 #
 # $Author: smaruyam $
 # $Date: 2012/12/14 17:02:45 $
@@ -8,24 +8,28 @@
 #
 #
 # Marco Rovere = marco.rovere@cern.ch
-# Laura Borello = Laura.Borrello@cern.ch 
+# Laura Borello = Laura.Borrello@cern.ch
 # Ringaile Placakyte = ringaile@mail.desy.de
 #
 ################################################################################
 
-import re, json, sys, ConfigParser, os, string, commands, time, socket
+import sys
+import json
+import commands
+import ConfigParser
+
 from rrapi import RRApi, RRApiError
 
 class Certifier():
-    
-    cfg='runreg.cfg'
+
+    cfg = 'runreg.cfg'
     OnlineRX = "%Online%ALL"
     EXCL_LS_BITS = ('jetmet','muon','egamma')
     EXCL_RUN_BITS = ('all')
-    
-    def __init__(self,argv,verbose=False):
+
+    def __init__(self, argv, verbose=False):
         self.verbose = verbose
-        if len(argv)==2:
+        if len(argv) == 2:
             self.cfg = argv[1]
         else:
             self.cfg = Certifier.cfg
@@ -33,11 +37,12 @@ class Certifier():
         self.qry.setdefault("GOOD", "isNull OR = true")
         self.qry.setdefault("BAD", " = false")
         self.readConfig()
-        
+
     def readConfig(self):
         CONFIG = ConfigParser.ConfigParser()
         if self.verbose:
             print 'Reading configuration file from %s' % self.cfg
+
         CONFIG.read(self.cfg)
         cfglist = CONFIG.items('Common')
         self.dataset = CONFIG.get('Common','DATASET')
@@ -45,16 +50,15 @@ class Certifier():
         self.address = CONFIG.get('Common','RUNREG')
         self.runmin  = CONFIG.get('Common','RUNMIN')
         self.runmax  = CONFIG.get('Common','RUNMAX')
-        self.runlist = "" 
+        self.runlist = ""
         for item in cfglist:
             if "RUNLIST" in item[0].upper():
                 self.runlist = item[1].split(" ")
-        self.qflist  = CONFIG.get('Common','QFLAGS').split(',')
 
+        self.qflist  = CONFIG.get('Common','QFLAGS').split(',')
         self.bfield_thr  = '-0.1'
         self.bfield_min  = '-0.1'
         self.bfield_max  = '4.1'
-
         self.injection  = "%"
         self.dcslist = CONFIG.get('Common','DCS').split(',')
         self.jsonfile = CONFIG.get('Common','JSONFILE')
@@ -68,14 +72,17 @@ class Certifier():
         self.useBeamPresent = "False"
         self.useBeamStable = "False"
         self.cacheFiles = []
-        self.predefinedPD = ["/Commissioning/Run2015A-v1/RAW","/ZeroBias/Run2015B-v1/RAW","/ZeroBias/Run2016B-v1/RAW"]
+        self.predefinedPD = ["/Commissioning/Run2015A-v1/RAW",
+                "/ZeroBias/Run2015B-v1/RAW", "/ZeroBias/Run2016B-v1/RAW"]
+
         self.component = []
         self.nolowpu = "True"
 
         print "First run ", self.runmin
         print "Last run ", self.runmax
-        if len(self.runlist)>0:
+        if len(self.runlist) > 0:
             print "List of runs ", self.runlist, " (",len(self.runlist), " runs)"
+
         print "Dataset name ", self.dataset
         print "Group name ", self.group
         print "Quality flags ", self.qflist
@@ -124,6 +131,7 @@ class Certifier():
 
         if self.useDAS == "True":
             self.usedbs = False
+
         print "Using DAS database: ", self.useDAS
         print "Using Cache? : ", self.useDBScache
 
@@ -138,16 +146,19 @@ class Certifier():
         except:
             print "Minimum BFIELD value not understood: ", self.bfield_min
             sys.exit(1)
+
         try:
             self.bfield_max = float(self.bfield_max)
         except:
             print "Maximum BFIELD value not understood: ", self.bfield_max
             sys.exit(1)
+
         try:
             self.bfield_thr = float(self.bfield_thr)
         except:
             print "Threshold BFIELD value not understood: ", self.bfield_thr
             sys.exit(1)
+
         if self.bfield_thr > self.bfield_min:
             self.bfield_min = self.bfield_thr
 
@@ -158,11 +169,10 @@ class Certifier():
                     print "Beam Energy ", self.beamene
             except:
                 print "BEAMENE value not understood: ", self.beamene
-                sys.exit(1)                
+                sys.exit(1)
 
     def generateFilter(self):
         self.filter = {}
-
         self.filter.setdefault("dataset", {})\
                                           .setdefault("rowClass", "org.cern.cms.dqm.runregistry.user.model.RunDatasetRowGlobal")
 
@@ -172,7 +182,7 @@ class Certifier():
             if sys != "NONE":
                 # Check if the bit is not excluded to avoide filter on LS for Egamma, Muon, JetMET
                 if len([i for i in self.EXCL_LS_BITS if i == sys.lower()]) == 0:
-                    self.filter.setdefault(sys.lower()+"Status", self.qry[value])
+                    self.filter.setdefault(sys.lower() + "Status", self.qry[value])
                 # Check run flag
                 if (self.EXCL_RUN_BITS != sys.lower()):
                     self.filter.setdefault("dataset", {})\
@@ -190,10 +200,11 @@ class Certifier():
 
         for dcs in self.dcslist:
             if dcs != "NONE":
-                self.filter.setdefault(dcs.lower()+"Ready", "isNull OR  = true")
+                self.filter.setdefault(dcs.lower() + "Ready", "isNull OR  = true")
 #                self.filter.setdefault(dcs.lower(), "isNull OR  = true")
-                if self.verbose: print dcs
-            
+                if self.verbose:
+                    print dcs
+
         if self.useBeamPresent == "True":
             print "Removing LS with no beam present"
             self.filter.setdefault("beam1Present", "isNull OR  = true")
@@ -213,13 +224,13 @@ class Certifier():
                                               .setdefault("online", " = true")
         else:
             datasetQuery = ''
-            for i in self.dataset.split(): 
+            for i in self.dataset.split():
                 datasetQuery += ' like "%s" OR' % i.split(":")[0]
             self.filter.setdefault("dataset", {})\
                                               .setdefault("filter", {})\
                                               .setdefault("datasetName", " like %s" % datasetQuery)
 
-        self.filter.setdefault("runNumber", ">= %d AND <= %d " %(int(self.runmin), int(self.runmax)))
+        self.filter.setdefault("runNumber", ">= %d AND <= %d " % ( int(self.runmin), int(self.runmax)))
         self.filter.setdefault("dataset", {})\
                                           .setdefault("filter", {})\
                                           .setdefault("runClassName", self.group)
@@ -231,14 +242,14 @@ class Certifier():
                                           .setdefault("filter", {})\
                                           .setdefault("run", {})\
                                           .setdefault("filter",{})\
-                                          .setdefault("bfield", "> %.1f AND <  %.1f " % (self.bfield_min, self.bfield_max) )
+                                          .setdefault("bfield", "> %.1f AND <  %.1f " % (self.bfield_min, self.bfield_max))
 
         if self.group.startswith("Collisions"):
             self.filter.setdefault("dataset", {})\
                                           .setdefault("filter", {})\
                                           .setdefault("run", {})\
                                           .setdefault("filter", {})\
-                                          .setdefault("injectionScheme", " like %s " % self.injection )
+                                          .setdefault("injectionScheme", " like %s " % self.injection)
 
         self.filter.setdefault("cmsActive", "isNull OR = true")
 
@@ -248,89 +259,90 @@ class Certifier():
                                                    .setdefault("filter", {})\
                                                    .setdefault("run", {})\
                                                    .setdefault("filter",{})\
-                                                   .setdefault(comp.lower()+"Present", " = true")
+                                                   .setdefault(comp.lower() + "Present", " = true")
 
         if len(self.dsstate):
             self.filter.setdefault("dataset", {})\
                                           .setdefault("filter", {})\
                                           .setdefault("datasetState", " = %s"  % self.dsstate)
-        if len(self.beamene):
 
+        if len(self.beamene):
             eneQuery = '{lhcEnergy} IS NULL OR {lhcEnergy} = 0 '
             for e in self.beamene:
-                energyLow = e - 400 
+                energyLow = e - 400
                 if energyLow < 0:
                     energyLow = 0
-                energyHigh = e + 400 
+                energyHigh = e + 400
                 eneQuery += 'OR ( {lhcEnergy} >= %.1d AND {lhcEnergy} <= %.1d) ' % (energyLow, energyHigh)
+
             self.filter.setdefault("dataset", {})\
                                               .setdefault("filter", {})\
                                               .setdefault("run", {})\
                                               .setdefault("query", eneQuery)
-        
+
         if self.verbose:
             print json.dumps(self.filter)
 
     def generateJson(self):
         try:
-            self.api = RRApi(self.address, debug = self.verbose)
+            self.api = RRApi(self.address, debug=self.verbose)
         except RRApiError, e:
             print e
             sys.exit(1)
-        self.cert_json = self.api.data(workspace = 'GLOBAL'\
-                                       , table = 'datasetlumis'\
-                                       , template = 'json'\
-                                       , columns = ['runNumber', 'sectionFrom', 'sectionTo']\
-                                       , tag = 'LATEST'\
-                                       , filter = self.filter)
+
+        self.cert_json = self.api.data(workspace='GLOBAL',
+                table='datasetlumis',template='json',
+                columns=['runNumber', 'sectionFrom', 'sectionTo'],
+                tag='LATEST',filter=self.filter)
+
         if self.verbose:
             print "Printing JSON file ", json.dumps(self.cert_json)
         self.convertToOldJson()
 
-        dbsjson={}
+        dbsjson = {}
         if self.useDBScache == "True":
             print "use cache"
-            dbsjson=get_cachejson(self, self.dbs_pds_all) 
+            dbsjson = get_cachejson(self, self.dbs_pds_all)
         elif self.usedbs:
-            dbsjson=get_dbsjson(self, self.dbs_pds_all, self.runmin, self.runmax, self.runlist)
-        elif self.useDAS:   
-            dbsjson=get_dasjson(self, self.dbs_pds_all, self.runmin, self.runmax, self.runlist)
+            dbsjson = get_dbsjson(self, self.dbs_pds_all, self.runmin, self.runmax, self.runlist)
+        elif self.useDAS:
+            dbsjson = get_dasjson(self, self.dbs_pds_all, self.runmin, self.runmax, self.runlist)
         else:
 # special case, e.g. cosmics which do not need DB or cache file
-            print "\nINFO: no cache or DB option was selected in cfg file" 
-           
+            print "\nINFO: no cache or DB option was selected in cfg file"
+
         if self.useDBScache == "True" or \
            self.usedbs or \
            self.useDAS:
 
-            if len(dbsjson)==0: 
-                print "\nERROR, dbsjson contains no runs, please check!" 
+            if len(dbsjson) == 0:
+                print "\nERROR, dbsjson contains no runs, please check!"
                 sys.exit(1)
             if self.verbose:
                 print "Printing dbsjson ", dbsjson
             for element in self.cert_old_json:
-                combined=[]
-                dbsbad_int=invert_intervals(self.cert_old_json[element])
+                combined = []
+                dbsbad_int = invert_intervals(self.cert_old_json[element])
                 if self.verbose:
-                    print " debug: Good Lumi ", self.cert_old_json[element] 
-                    print " debug:  Bad Lumi ", dbsbad_int 
-                for interval in  dbsbad_int:
+                    print " debug: Good Lumi ", self.cert_old_json[element]
+                    print " debug:  Bad Lumi ", dbsbad_int
+                for interval in dbsbad_int:
                     combined.append(interval)
-            
+
                 if element in dbsjson.keys():
                     if self.verbose:
                         print " debug: Found in DBS, Run ", element, ", Lumi ", dbsjson[element]
-                    dbsbad_int=invert_intervals(dbsjson[element])
+                    dbsbad_int = invert_intervals(dbsjson[element])
                     if self.verbose:
-                        print " debug DBS: Bad Lumi ", dbsbad_int 
+                        print " debug DBS: Bad Lumi ", dbsbad_int
                 else:
-                    dbsbad_int=[[1,9999]]
-                for interval in  dbsbad_int:
+                    dbsbad_int = [[1,9999]]
+                for interval in dbsbad_int:
                     combined.append(interval)
-                combined=merge_intervals(combined)
-                combined=invert_intervals(combined) 
-                if len(combined)!=0:
-                    self.cert_old_json[element]=combined 
+                combined = merge_intervals(combined)
+                combined = invert_intervals(combined)
+                if len(combined) != 0:
+                    self.cert_old_json[element] = combined
 
         if self.verbose:
             print json.dumps(self.cert_old_json)
@@ -340,33 +352,32 @@ class Certifier():
         self.cert_old_json = {}
         for block in self.cert_json:
             if len(block) == 3:
-             runNum = block['runNumber']
-             lumiStart = block['sectionFrom']
-             lumiEnd = block['sectionTo']
-             if self.verbose:
-                 print " debug: Run ", runNum, " Lumi ", lumiStart, ", ", lumiEnd
-
-# impose the selection of runs from the run list if given in cfg file 
-# (in a list of run accessed from RR) same later applied to list accessed from DAS
-             if len(self.runlist)>0:
-	        foundr = False
-	        for runinl in self.runlist:
-	           if runinl.startswith('"'):
-		      runinl = runinl[1:]
-		   if runinl.endswith('"'):
-	   	      runinl = runinl[:-1]
-	  	   if int(runNum) == int(runinl):
-		      foundr = True
-#		      print "selecting run fom the list = ", runNum, runinl
-
-  	        if foundr:
-                   old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
-                   if self.verbose:
-                      print old_json[str(runNum)]
-	     else: 
-                old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
+                runNum = block['runNumber']
+                lumiStart = block['sectionFrom']
+                lumiEnd = block['sectionTo']
                 if self.verbose:
-                   print old_json[str(runNum)]
+                    print " debug: Run ", runNum, " Lumi ", lumiStart, ", ", lumiEnd
+
+# impose the selection of runs from the run list if given in cfg file
+# (in a list of run accessed from RR) same later applied to list accessed from DAS
+                if len(self.runlist) > 0:
+                    foundr = False
+                    for runinl in self.runlist:
+                        if runinl.startswith('"'):
+                            runinl = runinl[1:]
+                        if runinl.endswith('"'):
+                            runinl = runinl[:-1]
+                        if int(runNum) == int(runinl):
+                            foundr = True
+
+                    if foundr:
+                        old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
+                        if self.verbose:
+                            print old_json[str(runNum)]
+                else:
+                    old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
+                    if self.verbose:
+                        print old_json[str(runNum)]
 
         for block in old_json:
             temp = []
@@ -374,53 +385,54 @@ class Certifier():
             self.cert_old_json.setdefault(block, temp)
             if self.verbose:
                 print "Merging Done on Run ", block,
-                print " Interval ", temp 
+                print " Interval ", temp
 
     def writeJson(self):
         js = open(self.jsonfile, 'w+')
         json.dump(self.cert_old_json, js, sort_keys=True)
         js.close()
-#       print json file name
         print " "
         print "-------------------------------------------"
         print "Json file: %s written.\n" % self.jsonfile
-        
 
-def invert_intervals(intervals,min_val=1,max_val=9999):
+def invert_intervals(intervals, min_val=1, max_val=9999):
     if not intervals:
         return []
-    intervals=merge_intervals(intervals)
+
+    intervals = merge_intervals(intervals)
     intervals = sorted(intervals, key = lambda x: x[0])
     result = []
-    if min_val==-1:
-        (a,b)=intervals[0]
-        min_val=a
-    if max_val==-1:
-        (a,b)=intervals[len(intervals)-1]
-        max_val=b
+    if min_val == -1:
+        (a,b) = intervals[0]
+        min_val = a
+    if max_val == -1:
+        (a,b) = intervals[len(intervals)-1]
+        max_val = b
 
-    curr_min=min_val
+    curr_min = min_val
     for (x,y) in intervals:
-        if x>curr_min:
-            result.append((curr_min,x-1))
-        curr_min=y+1
-    if curr_min<max_val:
-        result.append((curr_min,max_val))
+        if x > curr_min:
+            result.append((curr_min, x-1))
+        curr_min = y + 1
+    if curr_min < max_val:
+        result.append((curr_min, max_val))
 
     return result
 
 def merge_intervals(intervals):
     if not intervals:
         return []
+
     intervals = sorted(intervals, key = lambda x: x[0])
     result = []
     (a, b) = intervals[0]
     for (x, y) in intervals[1:]:
-        if x <= b:  
+        if x <= b:
             b = max(b, y)
         else:
             result.append((a, b))
             (a, b) = (x, y)
+
     result.append((a, b))
     return result
 
@@ -431,7 +443,7 @@ def merge_intervals2(intervals):
     result = []
     (a, b) = intervals[0]
     for (x, y) in intervals[1:]:
-        if x <= b+1:    
+        if x <= b + 1:
             b = max(b, y)
         else:
             result.append((a, b))
@@ -439,162 +451,155 @@ def merge_intervals2(intervals):
     result.append((a, b))
     return result
 
-
 def get_cachejson(self, datasets):
-    unsorted={}
-    lumirangesjson=[]
-    lumirangejson={}
+    unsorted = {}
+    lumirangesjson = []
+    lumirangejson = {}
     fileformatjson = False
     for ds in  datasets.split(","):
         if (ds in self.predefinedPD) :
             for cacheName in self.cacheFiles:
                 cacheFile = open(cacheName)
                 for line in cacheFile:
-# 
                     if '[' in line:
-#                        print "List in cache file is json format "
+                        # print "List in cache file is json format "
                         fileformatjson = True
 
-                    runlumi=line.split()
+                    runlumi = line.split()
                     if len(runlumi) > 1:
                         if runlumi[0].isdigit():
-                            run=runlumi[0]
+                            run = runlumi[0]
 
                             if fileformatjson:
-                                runlumic=runlumi[1:]
-                                lumirange=[]
+                                runlumic = runlumi[1:]
+                                lumirange = []
                                 for i, v in enumerate(runlumic):
-                                    if not i%2:
-                                        lowlumi=int(v.replace('[','').replace(']','').replace(',','')) 
+                                    if not i % 2:
+                                        lowlumi = int(v.replace('[','').replace(']','').replace(',',''))
                                     else:
-                                        highlumi=int(v.replace('[','').replace(']','').replace(',','')) 
-                                        lumi=range(lowlumi,highlumi+1)
-                                        lumirange+=lumi
+                                        highlumi = int(v.replace('[','').replace(']','').replace(',',''))
+                                        lumi = range(lowlumi, highlumi + 1)
+                                        lumirange += lumi
                                 if run not in unsorted.keys():
-                                    unsorted[run]=[]
-                                    unsorted[run]=lumirange
-
-			    else:
+                                    unsorted[run] = []
+                                    unsorted[run] = lumirange
+                            else:
                                 if run not in unsorted.keys():
-                                    unsorted[run]=[]
+                                    unsorted[run] = []
                                     for lumi in runlumi[1:]:
                                         unsorted[run].append(int(lumi))
                 cacheFile.close()
-  
-    sorted={}
-    for run in unsorted.keys():
-       lumilist=unsorted[run]
-       lumilist.sort()
-       sorted[run]=lumilist
 
-    dbsjson={}
+    sorted = {}
+    for run in unsorted.keys():
+       lumilist = unsorted[run]
+       lumilist.sort()
+       sorted[run] = lumilist
+
+    dbsjson = {}
     for run in sorted.keys():
-       lumilist=sorted[run]
-       lumiranges=[]
-       lumirange=[]
+       lumilist = sorted[run]
+       lumiranges = []
+       lumirange = []
        lumirange.append(lumilist[0])
-       lastlumi=lumilist[0]
+       lastlumi = lumilist[0]
        for lumi in lumilist[1:]:
-           if lumi>lastlumi+1:
+           if lumi > lastlumi + 1:
                lumirange.append(lastlumi)
                lumiranges.append(lumirange)
-               lumirange=[]
+               lumirange = []
                lumirange.append(lumi)
-           lastlumi=lumi
-       if len(lumirange)==1:
+           lastlumi = lumi
+       if len(lumirange) == 1:
            lumirange.append(lastlumi)
            lumiranges.append(lumirange)
-       dbsjson[run]=lumiranges
+       dbsjson[run] = lumiranges
 
     return dbsjson
 
 def get_dbsjson(self, datasets, runmin, runmax, runlist):
-    unsorted={}
-    for ds in  datasets.split(","):
-
-        command='' 
-        if len(runlist)>0:
+    unsorted = {}
+    for ds in datasets.split(","):
+        command = ''
+        if len(runlist) > 0:
            command='dbs search --query="find run,lumi where dataset=%s and run in (%s)"' % (ds, runlist)
            print "\nWARNING: dbs seach will only work if RunList contains less then 650 runs (this option to become obsolete!)" 
-        else: 
+        else:
            command='dbs search --query="find run,lumi where dataset=%s and run >=%s  and run<=%s"' % (ds, runmin, runmax)
         print command
 
         (status, out) = commands.getstatusoutput(command)
-        if status: 
+        if status:
             sys.stderr.write(out)
             print "\nERROR on dbs command: %s\nHave you done cmsenv?" % command
             sys.exit(1)
         for line in out.split('\n'):
-            fields=line.split()
-            if len(fields)!=2:
+            fields = line.split()
+            if len(fields) != 2:
                 continue
             if fields[0].isdigit() and fields[1].isdigit():
-                run=fields[0]
-                lumi=int(fields[1])
+                run = fields[0]
+                lumi = int(fields[1])
                 if run not in unsorted.keys():
-                     unsorted[run]=[]
+                    unsorted[run] = []
                 unsorted[run].append(lumi)
 
-    sorted={}
+    sorted = {}
     for run in unsorted.keys():
-        lumilist=unsorted[run]
+        lumilist = unsorted[run]
         lumilist.sort()
-        sorted[run]=lumilist
+        sorted[run] = lumilist
 
-    dbsjson={}
+    dbsjson = {}
     for run in sorted.keys():
-        lumilist=sorted[run]
-        lumiranges=[]
-        lumirange=[]
+        lumilist = sorted[run]
+        lumiranges = []
+        lumirange = []
         lumirange.append(lumilist[0])
-        lastlumi=lumilist[0]
+        lastlumi = lumilist[0]
         for lumi in lumilist[1:]:
-            if lumi>lastlumi+1:
+            if lumi > lastlumi + 1:
                 lumirange.append(lastlumi)
                 lumiranges.append(lumirange)
-                lumirange=[]
+                lumirange = []
                 lumirange.append(lumi)
-            lastlumi=lumi
-        if len(lumirange)==1:
+            lastlumi = lumi
+        if len(lumirange) == 1:
             lumirange.append(lastlumi)
             lumiranges.append(lumirange)
-        dbsjson[run]=lumiranges
+        dbsjson[run] = lumiranges
 
     return dbsjson
 
-
 def get_dasjson(self, datasets, runmin, runmax, runlist):
-    unsorted={}
-    for ds in  datasets.split(","):
-        for runnm in range(int(runmin), int(runmax)+1):
+    unsorted = {}
+    for ds in datasets.split(","):
+        for runnm in range(int(runmin), int(runmax) + 1):
             foundrun = False
-            if len(runlist)>0:
-#                 if str(runnm) in runlist: 
-#                 print ">>> run in list  = ", runnm
+            if len(runlist) > 0:
+                # if str(runnm) in runlist:
+                #     print ">>> run in list  = ", runnm
                 for runl in runlist:
                     if runl.startswith('"'):
                         runl = runl[1:]
                     if runl.endswith('"'):
                         runl = runl[:-1]
-                    if str(runnm) in runl: 
+                    if str(runnm) in runl:
                         foundrun = True
             else:
                 foundrun = True
 
             if foundrun:
-                command='das_client.py --query="lumi,run dataset=%s run=%s system=dbs3" --format=json --das-headers --limit=0' % (ds, runnm)
+                command = 'das_client.py --query="lumi,run dataset=%s run=%s system=dbs3" --format=json --das-headers --limit=0' % (ds, runnm)
 
                 print command
                 (status, out) = commands.getstatusoutput(command)
-
-                if status: 
+                if status:
                     sys.stderr.write(out)
                     print "\nERROR on das command: %s\nHave you done cmsenv?" % command
                     sys.exit(1)
 
-                js=json.loads(out)
-#               print "JSON FORMAT", js
+                js = json.loads(out)
                 try:
                     js['data'][0]['run'][0]['run_number']
                 except:
@@ -604,13 +609,13 @@ def get_dasjson(self, datasets, runmin, runmax, runlist):
                 lumi = js['data'][0]['lumi'][0]['number']
 
                 if run not in unsorted.keys():
-                   unsorted[run]=[]
-                   for l in lumi:
-	               unsorted[run].append(l)
+                    unsorted[run] = []
+                    for l in lumi:
+                        unsorted[run].append(l)
 
-            dasjson={}
+            dasjson = {}
             for run in unsorted.keys():
-	        dasjson[str(run)]=unsorted[run]
+                dasjson[str(run)]=unsorted[run]
 
     return dasjson
 
