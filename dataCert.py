@@ -19,6 +19,7 @@ import commands
 import ConfigParser
 
 from rrapi import RRApi, RRApiError
+from rhapi import RhApi
 
 class Certifier():
 
@@ -171,6 +172,64 @@ class Certifier():
                 print "BEAMENE value not understood: ", self.beamene
                 sys.exit(1)
 
+    def generate_runs_query(self):
+        """
+        make query for rr4 api to return list of runs from runs_offline DB
+        """
+
+        table_name = "r"
+        params = []
+        __query = "select %s.RUNNUMBER from runreg_global.runs_off %s where" % (table_name,
+                table_name)
+
+        # run query
+        params.append("(%s.BFIELD > %.1f AND %s.BFIELD < %.1f)" % (table_name,
+                self.bfield_min, table_name, self.bfield_max))
+
+        if self.group.startswith("Collisions"):
+            params.append("%s.INJECTIONSCHEME like '%s'" % (table_name, self.injection))
+
+        for comp in self.component:
+             if comp != 'NONE':
+                params.append("%s.%s_PRESENT = 1" % (table_name, comp.upper()))
+
+        if len(self.beamene):
+            eneQuery = '(%s.LHCENERGY IS NULL OR %s.LHCENERGY = 0 )' % (table_name, table_name)
+            for e in self.beamene:
+                energyLow = e - 400
+                if energyLow < 0:
+                    energyLow = 0
+                energyHigh = e + 400
+                eneQuery = eneQuery[:-1] # remove last bracket of previous query
+                eneQuery += 'OR (%s.LHCENERGY >= %.1d AND %s.LHCENERGY <= %.1d) )' % (table_name,
+                        energyLow, table_name, energyHigh)
+
+            params.append(eneQuery)
+
+        params.append("%s.RUNNUMBER >= %s AND %s.RUNNUMBER <= %s" % (table_name,
+                self.runmin, table_name, self.runmax))
+
+        return __query + " AND ".join(params)
+
+    def get_list_of_runs(self, query):
+        """
+        return list of runs from restHub API
+        """
+        try:
+            new_url = "http://vocms00170:2113"
+            api = RhApi(new_url, debug=self.verbose)
+            rr_data = api.json(query, inline_clobs=True)
+        except Exception as ex:
+            print("Error while using RestHub API: %s" % (ex))
+            sys.exit(-1)
+
+        # convert resthub format to useful list of runs
+        # 0th value is runnumber as specified in __query
+
+        list_of_runs = [el[0] for el in rr_data["data"]]
+        return list_of_runs
+
+
     def generateFilter(self):
         self.filter = {}
         self.filter.setdefault("dataset", {})\
@@ -201,7 +260,7 @@ class Certifier():
         for dcs in self.dcslist:
             if dcs != "NONE":
                 self.filter.setdefault(dcs.lower() + "Ready", "isNull OR  = true")
-#                self.filter.setdefault(dcs.lower(), "isNull OR  = true")
+                # self.filter.setdefault(dcs.lower(), "isNull OR  = true")
                 if self.verbose:
                     print dcs
 
@@ -234,51 +293,55 @@ class Certifier():
         self.filter.setdefault("dataset", {})\
                                           .setdefault("filter", {})\
                                           .setdefault("runClassName", self.group)
-        self.filter.setdefault("dataset", {})\
-                                          .setdefault("filter", {})\
-                                          .setdefault("run", {})\
-                                          .setdefault("rowClass", "org.cern.cms.dqm.runregistry.user.model.RunSummaryRowGlobal")
-        self.filter.setdefault("dataset", {})\
-                                          .setdefault("filter", {})\
-                                          .setdefault("run", {})\
-                                          .setdefault("filter",{})\
-                                          .setdefault("bfield", "> %.1f AND <  %.1f " % (self.bfield_min, self.bfield_max))
+        # # run query
+        # self.filter.setdefault("dataset", {})\
+        #                                   .setdefault("filter", {})\
+        #                                   .setdefault("run", {})\
+        #                                   .setdefault("rowClass", "org.cern.cms.dqm.runregistry.user.model.RunSummaryRowGlobal")
+        # # run query
+        # self.filter.setdefault("dataset", {})\
+        #                                   .setdefault("filter", {})\
+        #                                   .setdefault("run", {})\
+        #                                   .setdefault("filter",{})\
+        #                                   .setdefault("bfield", "> %.1f AND <  %.1f " % (self.bfield_min, self.bfield_max))
 
-        if self.group.startswith("Collisions"):
-            self.filter.setdefault("dataset", {})\
-                                          .setdefault("filter", {})\
-                                          .setdefault("run", {})\
-                                          .setdefault("filter", {})\
-                                          .setdefault("injectionScheme", " like %s " % self.injection)
+        # # run query
+        # if self.group.startswith("Collisions"):
+        #     self.filter.setdefault("dataset", {})\
+        #                                   .setdefault("filter", {})\
+        #                                   .setdefault("run", {})\
+        #                                   .setdefault("filter", {})\
+        #                                   .setdefault("injectionScheme", " like %s " % self.injection)
 
         self.filter.setdefault("cmsActive", "isNull OR = true")
 
-        for comp in self.component:
-             if comp != 'NONE':
-                 self.filter.setdefault("dataset", {})\
-                                                   .setdefault("filter", {})\
-                                                   .setdefault("run", {})\
-                                                   .setdefault("filter",{})\
-                                                   .setdefault(comp.lower() + "Present", " = true")
+        # # run query
+        # for comp in self.component:
+        #      if comp != 'NONE':
+        #          self.filter.setdefault("dataset", {})\
+        #                                            .setdefault("filter", {})\
+        #                                            .setdefault("run", {})\
+        #                                            .setdefault("filter",{})\
+        #                                            .setdefault(comp.lower() + "Present", " = true")
 
         if len(self.dsstate):
             self.filter.setdefault("dataset", {})\
                                           .setdefault("filter", {})\
                                           .setdefault("datasetState", " = %s"  % self.dsstate)
+        # # run query
+        # if len(self.beamene):
+        #     eneQuery = '{lhcEnergy} IS NULL OR {lhcEnergy} = 0 '
+        #     for e in self.beamene:
+        #         energyLow = e - 400
+        #         if energyLow < 0:
+        #             energyLow = 0
+        #         energyHigh = e + 400
+        #         eneQuery += 'OR ( {lhcEnergy} >= %.1d AND {lhcEnergy} <= %.1d) ' % (energyLow, energyHigh)
 
-        if len(self.beamene):
-            eneQuery = '{lhcEnergy} IS NULL OR {lhcEnergy} = 0 '
-            for e in self.beamene:
-                energyLow = e - 400
-                if energyLow < 0:
-                    energyLow = 0
-                energyHigh = e + 400
-                eneQuery += 'OR ( {lhcEnergy} >= %.1d AND {lhcEnergy} <= %.1d) ' % (energyLow, energyHigh)
-
-            self.filter.setdefault("dataset", {})\
-                                              .setdefault("filter", {})\
-                                              .setdefault("run", {})\
-                                              .setdefault("query", eneQuery)
+        #     self.filter.setdefault("dataset", {})\
+        #                                       .setdefault("filter", {})\
+        #                                       .setdefault("run", {})\
+        #                                       .setdefault("query", eneQuery)
 
         if self.verbose:
             print json.dumps(self.filter)
@@ -620,7 +683,8 @@ def get_dasjson(self, datasets, runmin, runmax, runlist):
     return dasjson
 
 if __name__ == '__main__':
-    cert = Certifier(sys.argv, verbose=False)
+    cert = Certifier(sys.argv, verbose=True)
     cert.generateFilter()
-    cert.generateJson()
-    cert.writeJson()
+    cert.get_list_of_runs(cert.generate_runs_query())
+    #cert.generateJson()
+    #cert.writeJson()
