@@ -74,6 +74,7 @@ class Certifier():
 
         self.component = []
         self.nolowpu = "True"
+        self.use_offline_DB = "True"
 
         print("First run: %s" % (self.runmin))
         print("Last run: %s" % (self.runmax))
@@ -121,6 +122,9 @@ class Certifier():
             if "NOLOWPU" in item[0].upper():
                 self.nolowpu = item[1]
                 print('NoLowPU: %s' % (self.nolowpu))
+            if "OFFLINEDB" in item[0].upper():
+                self.use_offline_DB = item[1]
+                print('Using online tables: %s' % (self.use_offline_DB))
 
         self.dbs_pds = self.dbs_pds_all.split(",")
 
@@ -174,8 +178,13 @@ class Certifier():
 
         table_name = "r"
         params = []
-        __query = "select %s.RUNNUMBER from runreg_global.runs_off %s where" % (table_name,
-                table_name)
+        if self.use_offline_DB == "True":
+            db_name = "runs_off"
+        else:
+            db_name = "runs"
+
+        __query = "select %s.RUNNUMBER from runreg_global.%s %s where" % (table_name,
+                db_name, table_name)
 
         # run query
         params.append("(%s.BFIELD > %.1f AND %s.BFIELD < %.1f)" % (table_name,
@@ -275,10 +284,17 @@ class Certifier():
         """
         lumi_table = "dl"
         dataset_table = "d"
+        if self.use_offline_DB == "True":
+            lumi_table_name = "dataset_lumis_off"
+            dataset_table_name = "datasets_off"
+        else:
+            lumi_table_name = "dataset_lumis"
+            dataset_table_name = "datasets"
+
         __query = ("select %s.RDR_RUN_NUMBER, %s.RDR_SECTION_FROM, %s.RDR_SECTION_TO "
-                "from runreg_global.dataset_lumis_off %s, runreg_global.datasets_off %s where ") % (
-                lumi_table, lumi_table, lumi_table,
-                lumi_table, dataset_table)
+                "from runreg_global.%s %s, runreg_global.%s %s where ") % (
+                lumi_table, lumi_table, lumi_table, lumi_table_name,
+                lumi_table, dataset_table_name, dataset_table)
 
         params = []
 
@@ -590,7 +606,7 @@ def get_dasjson(self, datasets, runmin, runmax, runlist):
     return dasjson
 
 if __name__ == '__main__':
-    cert = Certifier(sys.argv, verbose=False)
+    cert = Certifier(sys.argv, verbose=True)
 
     rhub_query = cert.generateFilter()
     list_of_runs = cert.get_list_of_runs(cert.generate_runs_query())
