@@ -36,7 +36,7 @@ class Certifier():
             self.cfg = Certifier.cfg
         self.qry = {}
         self.qry.setdefault("GOOD", "isNull OR = true")
-        self.qry.setdefault("BAD", " = false")
+        self.qry.setdefault("BAD", "0")
         self.readConfig()
 
     def readConfig(self):
@@ -229,122 +229,146 @@ class Certifier():
         list_of_runs = [el[0] for el in rr_data["data"]]
         return list_of_runs
 
+    def get_list_of_lumis(self,query):
+        """
+        get list of lumis for runs with specified query
+        """
+        try:
+            new_url = "http://vocms00170:2113"
+            api = RhApi(new_url, debug=self.verbose)
+            rr_data = api.json(query, inline_clobs=True)
+        except Exception as ex:
+            print("Error while using RestHub API: %s" % (ex))
+            sys.exit(-1)
+
+        return rr_data
+
+    def generate_runs_of_lumis(self, data, run_list):
+        """
+        make a run: [[lumi1,lumi2],[lumi4,lumiN]] structure for specified data
+        check if run fom data is in run_list
+        data[0] is run_number
+        data[1] is section_from
+        data[2] is section_to
+        """
+        __actual_data = {}
+        for el in data:
+            if el[0] not in run_list:
+                print("run: %s in lumi_table not in run_list" % (el[0]))
+                continue
+            #if run not in data we create an empty list and append section
+            if el[0] not in __actual_data:
+                __actual_data[el[0]] = []
+                __actual_data[el[0]].append([el[1],el[2]])
+            else:
+                __actual_data[el[0]].append([el[1],el[2]])
+
+        #we have to sort list of sections for each for:
+        for el in __actual_data:
+            __actual_data[el].sort()
+
+        print(json.dumps(__actual_data, sort_keys=True))
+        with open("Cert_file_antanas.txt", "w") as f:
+            json.dump(__actual_data, f, sort_keys=True)
 
     def generateFilter(self):
-        self.filter = {}
-        self.filter.setdefault("dataset", {})\
-                                          .setdefault("rowClass", "org.cern.cms.dqm.runregistry.user.model.RunDatasetRowGlobal")
+        """
+        generate resthub query for dataset_offline table and dataset_lumis_off table
+        doing a join on dataset names
+        """
+        lumi_table = "dl"
+        dataset_table = "d"
+        __query = ("select %s.RDR_RUN_NUMBER, %s.RDR_SECTION_FROM, %s.RDR_SECTION_TO "
+                "from runreg_global.dataset_lumis_off %s, runreg_global.datasets_off %s where ") % (
+                lumi_table, lumi_table, lumi_table,
+                lumi_table, dataset_table)
+
+        params = []
 
         for qf in self.qflist:
             (sys,value) = qf.split(':')
-            if self.verbose: print qf
+            if self.verbose:
+                print qf
             if sys != "NONE":
                 # Check if the bit is not excluded to avoide filter on LS for Egamma, Muon, JetMET
                 if len([i for i in self.EXCL_LS_BITS if i == sys.lower()]) == 0:
-                    self.filter.setdefault(sys.lower() + "Status", self.qry[value])
+                    if value == "GOOD":
+                        # if null default to true
+                        params.append("nvl(%s.LSE_%s,1) = 1" % (lumi_table, sys.upper()))
+                    else:
+                        # false
+                        params.append("%s.LSE_%s = 0" % (lumi_table, sys.upper()))
+
                 # Check run flag
                 if (self.EXCL_RUN_BITS != sys.lower()):
-                    self.filter.setdefault("dataset", {})\
-                                                  .setdefault("filter", {})\
-                                                  .setdefault(sys.lower(), {})\
-                                                  .setdefault("status", " = %s" % value)
+                    # datasets_off query
+                    params.append("%s.RDA_CMP_%s = '%s'" % (dataset_table, sys.upper(), value))
 
 
         if self.nolowpu == "True":
             print "Removing low pile-up runs"
-            self.filter.setdefault("lowLumiStatus", "isNull OR = false")
+            params.append("nvl(%s.LSE_LOWLUMI, 0) = 0" % (lumi_table))
         else:
             print "Selecting ONLY low pile-up runs"
-            self.filter.setdefault("lowLumiStatus", "true")
+            params.append("%s.LSE_LOWLUMI = 1" % (lumi_table))
 
         for dcs in self.dcslist:
             if dcs != "NONE":
-                self.filter.setdefault(dcs.lower() + "Ready", "isNull OR  = true")
-                # self.filter.setdefault(dcs.lower(), "isNull OR  = true")
                 if self.verbose:
                     print dcs
 
+                params.append("nvl(%s.%s_READY, 1) = 1" % (lumi_table, dcs.upper()))
+
+
         if self.useBeamPresent == "True":
             print "Removing LS with no beam present"
-            self.filter.setdefault("beam1Present", "isNull OR  = true")
-            self.filter.setdefault("beam2Present", "isNull OR  = true")
+            params.append("nvl(%s.BEAM1_PRESENT, 1) = 1" % (lumi_table))
+            params.append("nvl(%s.BEAM2_PRESENT, 1) = 1" % (lumi_table))
 
         if self.useBeamStable == "True":
             print "Removing LS with non-stable beams"
-            self.filter.setdefault("beam1Stable", "isNull OR  = true")
-            self.filter.setdefault("beam2Stable", "isNull OR  = true")
+            params.append("nvl(%s.BEAM1_STABLE, 1) = 1" % (lumi_table))
+            params.append("nvl(%s.BEAM2_STABLE, 1) = 1" % (lumi_table))
+
+        params.append("%s.RDR_RUN_NUMBER >= %s" % (lumi_table, self.runmin))
+        params.append("%s.RDR_RUN_NUMBER <= %s" % (lumi_table, self.runmax))
+        params.append("nvl(%s.CMS_ACTIVE, 1) = 1" % (lumi_table))
+
 
         if self.online:
-            self.filter.setdefault("dataset", {})\
-                                              .setdefault("filter", {})\
-                                              .setdefault("datasetName", "like %s" % Certifier.OnlineRX)
-            self.filter.setdefault("dataset", {})\
-                                              .setdefault("filter", {})\
-                                              .setdefault("online", " = true")
+            # datasets_off query
+            params.append("%s.RDA_NAME like '%s'" % (dataset_table, Certifier.OnlineRX))
+
+            # WTF?? TO-DO: check which one it should look for online
+            # self.filter.setdefault("dataset", {})\
+            #                                   .setdefault("filter", {})\
+            #                                   .setdefault("online", " = true")
         else:
-            datasetQuery = ''
+            # datasets_off query
+            datasetQuery = '()'
             for i in self.dataset.split():
-                datasetQuery += ' like "%s" OR' % i.split(":")[0]
-            self.filter.setdefault("dataset", {})\
-                                              .setdefault("filter", {})\
-                                              .setdefault("datasetName", " like %s" % datasetQuery)
+                datasetQuery = datasetQuery[:-1]
+                datasetQuery += " %s.RDA_NAME like '%s' OR)" % (dataset_table, i.split(":")[0])
 
-        self.filter.setdefault("runNumber", ">= %d AND <= %d " % ( int(self.runmin), int(self.runmax)))
-        self.filter.setdefault("dataset", {})\
-                                          .setdefault("filter", {})\
-                                          .setdefault("runClassName", self.group)
-        # # run query
-        # self.filter.setdefault("dataset", {})\
-        #                                   .setdefault("filter", {})\
-        #                                   .setdefault("run", {})\
-        #                                   .setdefault("rowClass", "org.cern.cms.dqm.runregistry.user.model.RunSummaryRowGlobal")
-        # # run query
-        # self.filter.setdefault("dataset", {})\
-        #                                   .setdefault("filter", {})\
-        #                                   .setdefault("run", {})\
-        #                                   .setdefault("filter",{})\
-        #                                   .setdefault("bfield", "> %.1f AND <  %.1f " % (self.bfield_min, self.bfield_max))
+            # remove the last OR) in query and replace it with bracket
+            datasetQuery = datasetQuery[:-3] + ")"
+            params.append(datasetQuery)
 
-        # # run query
-        # if self.group.startswith("Collisions"):
-        #     self.filter.setdefault("dataset", {})\
-        #                                   .setdefault("filter", {})\
-        #                                   .setdefault("run", {})\
-        #                                   .setdefault("filter", {})\
-        #                                   .setdefault("injectionScheme", " like %s " % self.injection)
-
-        self.filter.setdefault("cmsActive", "isNull OR = true")
-
-        # # run query
-        # for comp in self.component:
-        #      if comp != 'NONE':
-        #          self.filter.setdefault("dataset", {})\
-        #                                            .setdefault("filter", {})\
-        #                                            .setdefault("run", {})\
-        #                                            .setdefault("filter",{})\
-        #                                            .setdefault(comp.lower() + "Present", " = true")
+        # datasets_off query
+        params.append("%s.RUN_CLASS_NAME = '%s'" % (dataset_table, self.group))
 
         if len(self.dsstate):
-            self.filter.setdefault("dataset", {})\
-                                          .setdefault("filter", {})\
-                                          .setdefault("datasetState", " = %s"  % self.dsstate)
-        # # run query
-        # if len(self.beamene):
-        #     eneQuery = '{lhcEnergy} IS NULL OR {lhcEnergy} = 0 '
-        #     for e in self.beamene:
-        #         energyLow = e - 400
-        #         if energyLow < 0:
-        #             energyLow = 0
-        #         energyHigh = e + 400
-        #         eneQuery += 'OR ( {lhcEnergy} >= %.1d AND {lhcEnergy} <= %.1d) ' % (energyLow, energyHigh)
+            # datasets_off query
+            params.append("%s.RDA_STATE = '%s'" % (dataset_table, self.dsstate))
 
-        #     self.filter.setdefault("dataset", {})\
-        #                                       .setdefault("filter", {})\
-        #                                       .setdefault("run", {})\
-        #                                       .setdefault("query", eneQuery)
+        # make a join of dataset table and lumi tables
+        params.append("%s.RDR_RUN_NUMBER = %s.RUN_NUMBER" % (lumi_table, dataset_table))
+        params.append("%s.RDR_RDA_NAME = %s.RDA_NAME" % (lumi_table, dataset_table))
 
         if self.verbose:
-            print json.dumps(self.filter)
+            print(__query + " AND ".join(params))
+            #print json.dumps(self.filter)
+        return __query + " AND ".join(params)
 
     def generateJson(self):
         try:
@@ -581,58 +605,10 @@ def get_cachejson(self, datasets):
     return dbsjson
 
 def get_dbsjson(self, datasets, runmin, runmax, runlist):
-    unsorted = {}
-    for ds in datasets.split(","):
-        command = ''
-        if len(runlist) > 0:
-           command='dbs search --query="find run,lumi where dataset=%s and run in (%s)"' % (ds, runlist)
-           print "\nWARNING: dbs seach will only work if RunList contains less then 650 runs (this option to become obsolete!)" 
-        else:
-           command='dbs search --query="find run,lumi where dataset=%s and run >=%s  and run<=%s"' % (ds, runmin, runmax)
-        print command
-
-        (status, out) = commands.getstatusoutput(command)
-        if status:
-            sys.stderr.write(out)
-            print "\nERROR on dbs command: %s\nHave you done cmsenv?" % command
-            sys.exit(1)
-        for line in out.split('\n'):
-            fields = line.split()
-            if len(fields) != 2:
-                continue
-            if fields[0].isdigit() and fields[1].isdigit():
-                run = fields[0]
-                lumi = int(fields[1])
-                if run not in unsorted.keys():
-                    unsorted[run] = []
-                unsorted[run].append(lumi)
-
-    sorted = {}
-    for run in unsorted.keys():
-        lumilist = unsorted[run]
-        lumilist.sort()
-        sorted[run] = lumilist
-
-    dbsjson = {}
-    for run in sorted.keys():
-        lumilist = sorted[run]
-        lumiranges = []
-        lumirange = []
-        lumirange.append(lumilist[0])
-        lastlumi = lumilist[0]
-        for lumi in lumilist[1:]:
-            if lumi > lastlumi + 1:
-                lumirange.append(lastlumi)
-                lumiranges.append(lumirange)
-                lumirange = []
-                lumirange.append(lumi)
-            lastlumi = lumi
-        if len(lumirange) == 1:
-            lumirange.append(lastlumi)
-            lumiranges.append(lumirange)
-        dbsjson[run] = lumiranges
-
-    return dbsjson
+    """
+    DBS command line is deprecated
+    """
+    pass
 
 def get_dasjson(self, datasets, runmin, runmax, runlist):
     unsorted = {}
@@ -684,7 +660,9 @@ def get_dasjson(self, datasets, runmin, runmax, runlist):
 
 if __name__ == '__main__':
     cert = Certifier(sys.argv, verbose=True)
-    cert.generateFilter()
-    cert.get_list_of_runs(cert.generate_runs_query())
+    rhub_query = cert.generateFilter()
+    list_of_runs = cert.get_list_of_runs(cert.generate_runs_query())
+    lumi_data = cert.get_list_of_lumis(rhub_query)
+    cert.generate_runs_of_lumis(lumi_data["data"], list_of_runs)
     #cert.generateJson()
     #cert.writeJson()
