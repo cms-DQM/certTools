@@ -18,7 +18,6 @@ import json
 import commands
 import ConfigParser
 
-from rrapi import RRApi, RRApiError
 from rhapi import RhApi
 
 class Certifier():
@@ -34,6 +33,8 @@ class Certifier():
             self.cfg = argv[1]
         else:
             self.cfg = Certifier.cfg
+
+        self.restHubURL = "http://vocms00170:2113"
         self.qry = {}
         self.qry.setdefault("GOOD", "isNull OR = true")
         self.qry.setdefault("BAD", "0")
@@ -42,7 +43,7 @@ class Certifier():
     def readConfig(self):
         CONFIG = ConfigParser.ConfigParser()
         if self.verbose:
-            print 'Reading configuration file from %s' % self.cfg
+            print('Reading configuration file from %s') % (self.cfg)
 
         CONFIG.read(self.cfg)
         cfglist = CONFIG.items('Common')
@@ -51,10 +52,18 @@ class Certifier():
         self.address = CONFIG.get('Common','RUNREG')
         self.runmin  = CONFIG.get('Common','RUNMIN')
         self.runmax  = CONFIG.get('Common','RUNMAX')
-        self.runlist = ""
+        self.runlist = []
+
         for item in cfglist:
             if "RUNLIST" in item[0].upper():
-                self.runlist = item[1].split(" ")
+                for el in item[1].split(" "):
+                    # in case somebody put single quotes
+                    el.replace("'", '"')
+                    if el.startswith('"'):
+                        el = el[1:]
+                    if el.endswith('"'):
+                        el = el[:-1]
+                    self.runlist.append(int(el))
 
         self.qflist  = CONFIG.get('Common','QFLAGS').split(',')
         self.bfield_thr  = '-0.1'
@@ -79,15 +88,15 @@ class Certifier():
         self.component = []
         self.nolowpu = "True"
 
-        print "First run ", self.runmin
-        print "Last run ", self.runmax
+        print("First run: %s" % (self.runmin))
+        print("Last run: %s" % (self.runmax))
         if len(self.runlist) > 0:
-            print "List of runs ", self.runlist, " (",len(self.runlist), " runs)"
+            print("List of %s runs in runlist: %s" % (len(self.runlist), self.runlist))
 
-        print "Dataset name ", self.dataset
-        print "Group name ", self.group
-        print "Quality flags ", self.qflist
-        print "DCS flags ", self.dcslist
+        print("Dataset name: %s" % (self.dataset))
+        print("Group name: %s" % (self.group))
+        print("Quality flags: %s" % (self.qflist))
+        print("DCS flags: %s" % (self.dcslist))
 
         for item in cfglist:
             if "INJECTION" in item[0].upper():
@@ -113,51 +122,50 @@ class Certifier():
                 self.useDBScache = item[1]
             if "BEAMPRESENT" in item[0].upper():
                 self.useBeamPresent = item[1]
-                print 'Use Beam Present Flag', self.useBeamPresent
+                print('Use Beam Present Flag: %s' % (self.useBeamPresent))
             if "BEAMSTABLE" in item[0].upper():
                 self.useBeamStable = item[1]
-                print 'Use Beam Stable Flag', self.useBeamStable
+                print('Use Beam Stable Flag: %s' % (self.useBeamStable))
             if "CACHEFILE" in item[0].upper():
                 self.cacheFiles = item[1].split(',')
             if "COMPONENT" in item[0].upper():
                 self.component = item[1].split(',')
-                print 'COMPONENT ', self.component
+                print('COMPONENT: %s' % (self.component))
             if "NOLOWPU" in item[0].upper():
                 self.nolowpu = item[1]
-                print 'NoLowPU', self.nolowpu
+                print('NoLowPU: %s' % (self.nolowpu))
 
         self.dbs_pds = self.dbs_pds_all.split(",")
 
-        print "Injection schema ", self.injection
+        print("Injection schema: %s" % (self.injection))
 
         if self.useDAS == "True":
             self.usedbs = False
 
-        print "Using DAS database: ", self.useDAS
-        print "Using Cache? : ", self.useDBScache
+        print("Using DAS database: %s"  % (self.useDAS))
+        print("Using Cache: %s" % (self.useDBScache))
 
         self.online = False
-        if "TRUE" == self.online_cfg.upper() or \
-               "1" == self.online_cfg.upper() or \
-               "YES" == self.online_cfg.upper():
+        if ("TRUE" == self.online_cfg.upper() or
+               "1" == self.online_cfg.upper() or "YES" == self.online_cfg.upper()):
             self.online = True
 
         try:
             self.bfield_min = float(self.bfield_min)
         except:
-            print "Minimum BFIELD value not understood: ", self.bfield_min
+            print("Minimum BFIELD value not understood: %s" % (self.bfield_min))
             sys.exit(1)
 
         try:
             self.bfield_max = float(self.bfield_max)
         except:
-            print "Maximum BFIELD value not understood: ", self.bfield_max
+            print("Maximum BFIELD value not understood: %s" % (self.bfield_max))
             sys.exit(1)
 
         try:
             self.bfield_thr = float(self.bfield_thr)
         except:
-            print "Threshold BFIELD value not understood: ", self.bfield_thr
+            print("Threshold BFIELD value not understood: %s" %(self.bfield_thr))
             sys.exit(1)
 
         if self.bfield_thr > self.bfield_min:
@@ -167,9 +175,9 @@ class Certifier():
             try:
                 self.beamene[e] = float(self.beamene[e])
                 if self.verbose:
-                    print "Beam Energy ", self.beamene
+                    print("Beam Energy: %s" % (self.beamene))
             except:
-                print "BEAMENE value not understood: ", self.beamene
+                print("BEAMENE value not understood: %s" % (self.beamene))
                 sys.exit(1)
 
     def generate_runs_query(self):
@@ -215,9 +223,9 @@ class Certifier():
         """
         return list of runs from restHub API
         """
+
         try:
-            new_url = "http://vocms00170:2113"
-            api = RhApi(new_url, debug=self.verbose)
+            api = RhApi(self.restHubURL, debug=self.verbose)
             rr_data = api.json(query, inline_clobs=True)
         except Exception as ex:
             print("Error while using RestHub API: %s" % (ex))
@@ -229,13 +237,13 @@ class Certifier():
         list_of_runs = [el[0] for el in rr_data["data"]]
         return list_of_runs
 
-    def get_list_of_lumis(self,query):
+    def get_list_of_lumis(self, query):
         """
         get list of lumis for runs with specified query
         """
+
         try:
-            new_url = "http://vocms00170:2113"
-            api = RhApi(new_url, debug=self.verbose)
+            api = RhApi(self.restHubURL, debug=self.verbose)
             rr_data = api.json(query, inline_clobs=True)
         except Exception as ex:
             print("Error while using RestHub API: %s" % (ex))
@@ -256,6 +264,9 @@ class Certifier():
             if el[0] not in run_list:
                 print("run: %s in lumi_table not in run_list" % (el[0]))
                 continue
+            if el[0] in self.runlist:
+                print("run: %s is specified in config RUNLIST" % (el[0]))
+                continue
             #if run not in data we create an empty list and append section
             if el[0] not in __actual_data:
                 __actual_data[el[0]] = []
@@ -266,10 +277,9 @@ class Certifier():
         #we have to sort list of sections for each for:
         for el in __actual_data:
             __actual_data[el].sort()
+            __actual_data[el] = merge_intervals2(__actual_data[el])
 
-        print(json.dumps(__actual_data, sort_keys=True))
-        with open("Cert_file_antanas.txt", "w") as f:
-            json.dump(__actual_data, f, sort_keys=True)
+        return __actual_data
 
     def generateFilter(self):
         """
@@ -286,47 +296,47 @@ class Certifier():
         params = []
 
         for qf in self.qflist:
-            (sys,value) = qf.split(':')
+            (key,value) = qf.split(':')
             if self.verbose:
-                print qf
-            if sys != "NONE":
+                print("%s" % (qf))
+            if key != "NONE":
                 # Check if the bit is not excluded to avoide filter on LS for Egamma, Muon, JetMET
-                if len([i for i in self.EXCL_LS_BITS if i == sys.lower()]) == 0:
+                if len([i for i in self.EXCL_LS_BITS if i == key.lower()]) == 0:
                     if value == "GOOD":
                         # if null default to true
-                        params.append("nvl(%s.LSE_%s,1) = 1" % (lumi_table, sys.upper()))
+                        params.append("nvl(%s.LSE_%s,1) = 1" % (lumi_table, key.upper()))
                     else:
                         # false
-                        params.append("%s.LSE_%s = 0" % (lumi_table, sys.upper()))
+                        params.append("%s.LSE_%s = 0" % (lumi_table, key.upper()))
 
                 # Check run flag
-                if (self.EXCL_RUN_BITS != sys.lower()):
+                if (self.EXCL_RUN_BITS != key.lower()):
                     # datasets_off query
-                    params.append("%s.RDA_CMP_%s = '%s'" % (dataset_table, sys.upper(), value))
+                    params.append("%s.RDA_CMP_%s = '%s'" % (dataset_table, key.upper(), value))
 
 
         if self.nolowpu == "True":
-            print "Removing low pile-up runs"
+            print("Removing low pile-up runs")
             params.append("nvl(%s.LSE_LOWLUMI, 0) = 0" % (lumi_table))
         else:
-            print "Selecting ONLY low pile-up runs"
+            print("Selecting ONLY low pile-up runs")
             params.append("%s.LSE_LOWLUMI = 1" % (lumi_table))
 
         for dcs in self.dcslist:
             if dcs != "NONE":
                 if self.verbose:
-                    print dcs
+                    print("%s" % (dcs))
 
                 params.append("nvl(%s.%s_READY, 1) = 1" % (lumi_table, dcs.upper()))
 
 
         if self.useBeamPresent == "True":
-            print "Removing LS with no beam present"
+            print("Removing LS with no beam present")
             params.append("nvl(%s.BEAM1_PRESENT, 1) = 1" % (lumi_table))
             params.append("nvl(%s.BEAM2_PRESENT, 1) = 1" % (lumi_table))
 
         if self.useBeamStable == "True":
-            print "Removing LS with non-stable beams"
+            print("Removing LS with non-stable beams")
             params.append("nvl(%s.BEAM1_STABLE, 1) = 1" % (lumi_table))
             params.append("nvl(%s.BEAM2_STABLE, 1) = 1" % (lumi_table))
 
@@ -367,120 +377,59 @@ class Certifier():
 
         if self.verbose:
             print(__query + " AND ".join(params))
-            #print json.dumps(self.filter)
+
         return __query + " AND ".join(params)
 
-    def generateJson(self):
-        try:
-            self.api = RRApi(self.address, debug=self.verbose)
-        except RRApiError, e:
-            print e
-            sys.exit(1)
-
-        self.cert_json = self.api.data(workspace='GLOBAL',
-                table='datasetlumis',template='json',
-                columns=['runNumber', 'sectionFrom', 'sectionTo'],
-                tag='LATEST',filter=self.filter)
+    def filter_using_cmsweb(self):
 
         if self.verbose:
-            print "Printing JSON file ", json.dumps(self.cert_json)
-        self.convertToOldJson()
+            print("Filtering JSON data:%s "  % (json.dumps(self.cert_json)))
 
         dbsjson = {}
         if self.useDBScache == "True":
-            print "use cache"
+            print("use cache")
             dbsjson = get_cachejson(self, self.dbs_pds_all)
         elif self.usedbs:
             dbsjson = get_dbsjson(self, self.dbs_pds_all, self.runmin, self.runmax, self.runlist)
         elif self.useDAS:
             dbsjson = get_dasjson(self, self.dbs_pds_all, self.runmin, self.runmax, self.runlist)
         else:
-# special case, e.g. cosmics which do not need DB or cache file
-            print "\nINFO: no cache or DB option was selected in cfg file"
+            # special case, e.g. cosmics which do not need DB or cache file
+            print("INFO: no cache or DB option was selected in cfg file")
 
-        if self.useDBScache == "True" or \
-           self.usedbs or \
-           self.useDAS:
-
-            if len(dbsjson) == 0:
-                print "\nERROR, dbsjson contains no runs, please check!"
-                sys.exit(1)
-            if self.verbose:
-                print "Printing dbsjson ", dbsjson
-            for element in self.cert_old_json:
-                combined = []
-                dbsbad_int = invert_intervals(self.cert_old_json[element])
-                if self.verbose:
-                    print " debug: Good Lumi ", self.cert_old_json[element]
-                    print " debug:  Bad Lumi ", dbsbad_int
-                for interval in dbsbad_int:
-                    combined.append(interval)
-
-                if element in dbsjson.keys():
-                    if self.verbose:
-                        print " debug: Found in DBS, Run ", element, ", Lumi ", dbsjson[element]
-                    dbsbad_int = invert_intervals(dbsjson[element])
-                    if self.verbose:
-                        print " debug DBS: Bad Lumi ", dbsbad_int
-                else:
-                    dbsbad_int = [[1,9999]]
-                for interval in dbsbad_int:
-                    combined.append(interval)
-                combined = merge_intervals(combined)
-                combined = invert_intervals(combined)
-                if len(combined) != 0:
-                    self.cert_old_json[element] = combined
+        if len(dbsjson) == 0:
+            print("ERROR, dbsjson contains no runs, please check!")
+            sys.exit(1)
 
         if self.verbose:
-            print json.dumps(self.cert_old_json)
+            print("Printing dbsjson %s" % (dbsjson))
 
-    def convertToOldJson(self):
-        old_json = {}
-        self.cert_old_json = {}
-        for block in self.cert_json:
-            if len(block) == 3:
-                runNum = block['runNumber']
-                lumiStart = block['sectionFrom']
-                lumiEnd = block['sectionTo']
-                if self.verbose:
-                    print " debug: Run ", runNum, " Lumi ", lumiStart, ", ", lumiEnd
-
-# impose the selection of runs from the run list if given in cfg file
-# (in a list of run accessed from RR) same later applied to list accessed from DAS
-                if len(self.runlist) > 0:
-                    foundr = False
-                    for runinl in self.runlist:
-                        if runinl.startswith('"'):
-                            runinl = runinl[1:]
-                        if runinl.endswith('"'):
-                            runinl = runinl[:-1]
-                        if int(runNum) == int(runinl):
-                            foundr = True
-
-                    if foundr:
-                        old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
-                        if self.verbose:
-                            print old_json[str(runNum)]
-                else:
-                    old_json.setdefault(str(runNum), []).append([lumiStart, lumiEnd])
-                    if self.verbose:
-                        print old_json[str(runNum)]
-
-        for block in old_json:
-            temp = []
-            temp = merge_intervals2(old_json[block])
-            self.cert_old_json.setdefault(block, temp)
+        for element in self.cert_old_json:
+            combined = []
+            dbsbad_int = invert_intervals(self.cert_old_json[element])
             if self.verbose:
-                print "Merging Done on Run ", block,
-                print " Interval ", temp
+                print("debug: Good Lumi %s" % (self.cert_old_json[element]))
+                print("debug: Bad Lumi %s" % (dbsbad_int))
+            for interval in dbsbad_int:
+                combined.append(interval)
+            if element in dbsjson.keys():
+                if self.verbose:
+                    print("debug: Found in DBS Run: %s Lumi: %s" % (element, dbsjson[element]))
 
-    def writeJson(self):
-        js = open(self.jsonfile, 'w+')
-        json.dump(self.cert_old_json, js, sort_keys=True)
-        js.close()
-        print " "
-        print "-------------------------------------------"
-        print "Json file: %s written.\n" % self.jsonfile
+                dbsbad_int = invert_intervals(dbsjson[element])
+                if self.verbose:
+                    print("debug DBS Bad Lumi %s" % (dbsbad_int))
+            else:
+                dbsbad_int = [[1,9999]]
+            for interval in dbsbad_int:
+                combined.append(interval)
+            combined = merge_intervals(combined)
+            combined = invert_intervals(combined)
+            if len(combined) != 0:
+                self.cert_old_json[element] = combined
+
+        if self.verbose:
+            print("%s" % (json.dumps(self.cert_old_json)))
 
 def invert_intervals(intervals, min_val=1, max_val=9999):
     if not intervals:
@@ -524,9 +473,12 @@ def merge_intervals(intervals):
     return result
 
 def merge_intervals2(intervals):
+    """
+    merge lumisections in case two ranges has same start & end lumisection
+    """
     if not intervals:
         return []
-    intervals = sorted(intervals, key = lambda x: x[0])
+
     result = []
     (a, b) = intervals[0]
     for (x, y) in intervals[1:]:
@@ -549,7 +501,6 @@ def get_cachejson(self, datasets):
                 cacheFile = open(cacheName)
                 for line in cacheFile:
                     if '[' in line:
-                        # print "List in cache file is json format "
                         fileformatjson = True
 
                     runlumi = line.split()
@@ -616,26 +567,19 @@ def get_dasjson(self, datasets, runmin, runmax, runlist):
         for runnm in range(int(runmin), int(runmax) + 1):
             foundrun = False
             if len(runlist) > 0:
-                # if str(runnm) in runlist:
-                #     print ">>> run in list  = ", runnm
-                for runl in runlist:
-                    if runl.startswith('"'):
-                        runl = runl[1:]
-                    if runl.endswith('"'):
-                        runl = runl[:-1]
-                    if str(runnm) in runl:
-                        foundrun = True
+                if runnm in runlist:
+                    foundrun = True
             else:
                 foundrun = True
 
             if foundrun:
                 command = 'das_client.py --query="lumi,run dataset=%s run=%s system=dbs3" --format=json --das-headers --limit=0' % (ds, runnm)
 
-                print command
+                print(command)
                 (status, out) = commands.getstatusoutput(command)
                 if status:
                     sys.stderr.write(out)
-                    print "\nERROR on das command: %s\nHave you done cmsenv?" % command
+                    print("ERROR on das command: %s\nHave you done cmsenv?" % (command))
                     sys.exit(1)
 
                 js = json.loads(out)
@@ -659,10 +603,18 @@ def get_dasjson(self, datasets, runmin, runmax, runlist):
     return dasjson
 
 if __name__ == '__main__':
-    cert = Certifier(sys.argv, verbose=True)
+    cert = Certifier(sys.argv, verbose=False)
+
     rhub_query = cert.generateFilter()
     list_of_runs = cert.get_list_of_runs(cert.generate_runs_query())
     lumi_data = cert.get_list_of_lumis(rhub_query)
-    cert.generate_runs_of_lumis(lumi_data["data"], list_of_runs)
-    #cert.generateJson()
-    #cert.writeJson()
+    cert.cert_json = cert.generate_runs_of_lumis(lumi_data["data"], list_of_runs)
+
+    if (cert.useDBScache == "True" or
+           cert.usedbs or cert.useDAS):
+
+        cert.filter_using_cmsweb()
+
+    with open(cert.jsonfile, "w") as f:
+            json.dump(cert.cert_json, f, sort_keys=True)
+            print("Json file: %s written.") % (cert.jsonfile)
