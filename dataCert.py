@@ -1,17 +1,4 @@
 #! /usr/bin/env python
-################################################################################
-#
-#
-# $Author: smaruyam $
-# $Date: 2012/12/14 17:02:45 $
-# $Revision: 1.15 $ 18.06.2015 $
-#
-#
-# Marco Rovere = marco.rovere@cern.ch
-# Laura Borello = Laura.Borrello@cern.ch
-# Ringaile Placakyte = ringaile@mail.desy.de
-#
-################################################################################
 
 import sys
 import json
