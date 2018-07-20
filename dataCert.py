@@ -181,7 +181,7 @@ class Certifier():
         if self.use_offline_DB == "True":
             db_name = "runs_off"
         else:
-            db_name = "runs"
+            db_name = "runs_on"
 
         __query = "select %s.RUNNUMBER from runreg_global.%s %s where" % (table_name,
                 db_name, table_name)
@@ -288,8 +288,8 @@ class Certifier():
             lumi_table_name = "dataset_lumis_off"
             dataset_table_name = "datasets_off"
         else:
-            lumi_table_name = "dataset_lumis"
-            dataset_table_name = "datasets"
+            lumi_table_name = "dataset_lumis_on"
+            dataset_table_name = "datasets_on"
 
         __query = ("select %s.RDR_RUN_NUMBER, %s.RDR_SECTION_FROM, %s.RDR_SECTION_TO "
                 "from runreg_global.%s %s, runreg_global.%s %s where ") % (

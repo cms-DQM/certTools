@@ -27,7 +27,7 @@ def get_bfield_events(workspace, datasetName, runClass, days, write_to_file):
     runlist = {}
     firstDay = str(date.today() - timedelta(days=days))
     __query = ("select r.runnumber, r.bfield, r.events "
-            "from runreg_global.runs r where r.run_class_name like '%%%s%%' "
+            "from runreg_global.runs_on r where r.run_class_name like '%%%s%%' "
             "and r.starttime >= to_date('%s','yyyy-MM-dd')") % (
                     runClass, firstDay)
 
@@ -95,7 +95,7 @@ def getRR(min_run, datasetName, workspace, datasetClass, columns,
             ",".join(__sql_columns), workspace.lower(),
             min_run, datasetClass, datasetName))
 
-    __query = ("select %s from runreg_%s.datasets r "
+    __query = ("select %s from runreg_%s.datasets_off r "
         "where r.run_number >= %s and r.run_class_name like '%%%s%%' "
         "and r.rda_name like '%%%s%%'") % (
                 ",".join(__sql_columns), workspace.lower(),
