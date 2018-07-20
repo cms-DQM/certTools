@@ -1,40 +1,63 @@
 #!/usr/bin/env python
 
-import sys,ConfigParser,os,string,commands,time,xmlrpclib
-
-from optparse import OptionParser
+import sys
 import json
+import argparse
 
-from rrapi import RRApi, RRApiError
+from rhapi import RhApi
 
-parser=OptionParser()
-parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False)
-parser.add_option("-m", "--min", dest="min", type="int", default=294000, help="Minimum run")
-parser.add_option("-M", "--max", dest="max", type="int", default=999999, help="Maximum run")
-parser.add_option("-i", "--infile", dest="infile", type="string", default="",
-    help="Text file with run list")
-(options, args) = parser.parse_args()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+            description='Give list of Collisions runs for Online datasets')
+    parser.add_argument("-v", "--verbose",
+            dest="verbose", action="store_true", default=False, help="Display more info")
+    parser.add_argument("-m", "--min",
+            dest="min", type=int, default=294000, help="Minimum run")
+    parser.add_argument("-M", "--max",
+            dest="max", type=int, default=999999, help="Maximum run")
+    parser.add_argument("-i", "--infile",
+        dest="infile", type=str, default="",help="Text file with run list")
 
-RUNMINCFG=options.min
-RUNMAXCFG=options.max
+    options = parser.parse_args()
 
-runsel = ""
-runsel = '>= %d and <= %d'%(options.min,options.max)
+    if options.verbose:
+        print("Run selection: %s" % (runsel))
 
-if options.infile:
-    runsel = ""
-    filename=options.infile
-    inputfile = open(filename,"r")
-    print "Opening file ", filename, "which contains the run list"
-    selruns = [file.strip() for file in open(filename)]
-    for run in selruns:
-        print run
-        runsel += " OR = " + run
+    __run_alias = "r"
+    __dataset_alias = "d"
+    __query = ("select %s.RUNNUMBER, %s.EVENTS, %s.BFIELD, %s.HLTKEYDESCRIPTION "
+        "from runreg_global.runs_on %s, runreg_global.datasets_on %s where ") % (
+            __run_alias, __run_alias, __run_alias,
+            __run_alias, __run_alias, __dataset_alias)
 
-if options.verbose: print "Run selection ", runsel
+    __query += "%s.RUNNUMBER >= %s AND %s.RUNNUMBER <= %s " % (__run_alias,
+            options.min, __run_alias, options.max)
 
-URL  = "http://runregistry.web.cern.ch/runregistry/"
-api = RRApi(URL, debug = True)
-RUN_DATA = api.data(workspace = 'GLOBAL', table = 'runsummary', template = 'tsv', columns = ['number','events','bfield','hltKeyDescription'], filter = {"runClassName": "Collisions18", "number": '%s' % runsel, "datasets": {"rowClass": "org.cern.cms.dqm.runregistry.user.model.RunDatasetRowGlobal", "datasetName": "like %Online%"}}, tag= 'LATEST')
+    if options.infile:
+        print("Opening file %s which contains the run list" % (options.infile))
+        with open(options.infile, "r") as inputfile:
+            for run in inputfile:
+                print(run)
+                __query += "OR %s.RUNNUMBER = %s " % (__run_alias, run)
 
-print RUN_DATA
+    __query += "AND %s.RUN_CLASS_NAME = '%s' " % (__run_alias, "Collisions18")
+    __query += "AND %s.RDA_NAME like '%s' " % (__dataset_alias, "%Online%")
+
+    # do a join
+    __query += "AND %s.RUNNUMBER = %s.RUN_NUMBER" % (__run_alias, __dataset_alias)
+
+    try:
+        api = RhApi("http://vocms00170:2113", debug=True)
+        rr_data = api.json(__query, inline_clobs=True)
+    except Exception as ex:
+        print("Error while using RestHub API: %s" % (ex))
+        sys.exit(-1)
+
+    # print rr_data
+    print("RUN_NUMBER\tEVENTS\tBFIELD\tHLTKEYDESCRIPTION")
+    rr_data["data"].sort(key=lambda x: x[0])
+    for el in rr_data["data"]:
+        if el[1] != None:
+            print("%s\t%s\t%s\t%s" % (el[0], el[1], el[2], el[3]))
+        else:
+            print("%s\t\t%s\t%s" % (el[0], el[2], el[3]))
