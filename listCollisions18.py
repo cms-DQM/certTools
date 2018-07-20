@@ -57,7 +57,4 @@ if __name__ == '__main__':
     print("RUN_NUMBER\tEVENTS\tBFIELD\tHLTKEYDESCRIPTION")
     rr_data["data"].sort(key=lambda x: x[0])
     for el in rr_data["data"]:
-        if el[1] != None:
-            print("%s\t%s\t%s\t%s" % (el[0], el[1], el[2], el[3]))
-        else:
-            print("%s\t\t%s\t%s" % (el[0], el[2], el[3]))
+        print("%s\t%s\t%s\t%s" % (el[0], el[1] if el[1] else "", el[2], el[3]))
