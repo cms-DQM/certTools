@@ -183,7 +183,7 @@ class Certifier():
         else:
             db_name = "runs_on"
 
-        __query = "select %s.RUNNUMBER from runreg_global.%s %s where" % (table_name,
+        __query = "select %s.RUNNUMBER from runreg_global.%s %s where " % (table_name,
                 db_name, table_name)
 
         # run query
