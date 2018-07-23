@@ -15,8 +15,10 @@ if __name__ == '__main__':
             dest="min", type=int, default=294000, help="Minimum run")
     parser.add_argument("-M", "--max",
             dest="max", type=int, default=999999, help="Maximum run")
+    parser.add_argument("-g", "--group",
+        dest="data_type", type=str, default="Collisions18", help="Run class type")
     parser.add_argument("-i", "--infile",
-        dest="infile", type=str, default="",help="Text file with run list")
+        dest="infile", type=str, default="", help="Text file with run list")
 
     options = parser.parse_args()
 
@@ -40,7 +42,8 @@ if __name__ == '__main__':
                 print(run)
                 __query += "OR %s.RUNNUMBER = %s " % (__run_alias, run)
 
-    __query += "AND %s.RUN_CLASS_NAME = '%s' " % (__run_alias, "Collisions18")
+    print("Using run class name: %s" % (options.data_type))
+    __query += "AND %s.RUN_CLASS_NAME = '%s' " % (__run_alias, options.data_type)
     __query += "AND %s.RDA_NAME like '%s' " % (__dataset_alias, "%Online%")
 
     # do a join
