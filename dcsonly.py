@@ -6,7 +6,6 @@ import argparse
 
 from operator import itemgetter
 
-from rrapi import RRApi, RRApiError
 from rhapi import RhApi
 
 def get_runs(query):
