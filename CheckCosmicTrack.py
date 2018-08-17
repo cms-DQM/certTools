@@ -184,7 +184,7 @@ if __name__ == '__main__':
             len(cosmicsNotYetDQMGUI), " ".join(cosmicsNotYetDQMGUI)))
 
     #with open("/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/scripts/CMSSW_10_0_4/scripts/CosmicsToBeCertified.txt", "w") as f:
-    with open("CosmicsToBeCertified_test.txt", "w") as f:
+    with open("CosmicsToBeCertified.txt", "w") as f:
         for s in cosmicsList:
             f.write(str(s)+"\n")
 
