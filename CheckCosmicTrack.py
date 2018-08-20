@@ -9,6 +9,7 @@
 # VA run this once per week: voms-proxy-init --valid 168:0 --out /afs/cern.ch/user/a/azzolini/proxyVIR
 
 import os
+import re
 import sys
 import argparse
 
@@ -85,78 +86,29 @@ if __name__ == '__main__':
     run.sort()
     print("Fetching %s runs, please be patient" % (len(run)))
 
+    to_match = re.compile("/[\w\d]+/[\w\d]+-PromptReco-v[\d]/DQMIO")
     process = options.process
+
+    # we want to re-use x509 opener
+    opener = build_opener()
+
+    ## query DBSReader for each run and get it's full PromtReco processed name
     for runnum in run:
-        if runnum >= "270988" and run <= "271489":
-            process = "Run2016A-PromptReco-v2"
-        if runnum >= "271499" and run <= "271843":
-            process = "Run2016A-PromptReco-v1"
-        if runnum >= "271861" and run <= "273148":
-            process = "Run2016B-PromptReco-v1"
-        if runnum >= "273163" and run <= "275418":
-            process = "Run2016B-PromptReco-v2"
-        if runnum >= "275419" and run <= "276310":
-            process = "Run2016C-PromptReco-v2"
-        if runnum > "276333" and run <= "276804":
-            process = "Run2016D-PromptReco-v2"
-        if runnum > "276825" and run <= "277754":
-            process = "Run2016E-PromptReco-v2"
-        if runnum > "277772" and run <= "278798":
-            process = "Run2016F-PromptReco-v1"
-        if runnum > "278809" and run <= "280831":
-            process = "Run2016G-PromptReco-v1"
-        if runnum > "280992" and run <= "281199":
-            process = "Run2016H-PromptReco-v1"
-        if runnum > "281214" and run <= "284024":
-            process = "Run2016H-PromptReco-v2"
-        if runnum > "287178" and run <= "294640":
-            process = "Commissioning2017-PromptReco-v1"
-        if runnum > "294645" and run <= "296165":
-            process = "Run2017A-PromptReco-v1"
-        if runnum > "296166" and run <= "296661":
-            process = "Run2017A-PromptReco-v2"
-        if runnum > "296662" and run <= "296985":
-            process = "Run2017A-PromptReco-v3"
-        if runnum > "297033" and run <= "298397":
-            process = "Run2017B-PromptReco-v1"
-        if runnum > "298398" and run <= "299314":
-            process = "Run2017B-PromptReco-v2"
-        if runnum > "299336" and run <= "299917":
-            process = "Run2017C-PromptReco-v1"
-        if runnum > "299918" and run <= "300702":
-            process = "Run2017C-PromptReco-v2"
-        if runnum > "300703" and run <= "302029":
-            process = "Run2017C-PromptReco-v3"
-        if runnum > "302030" and run <= "302663":
-            process = "Run2017D-PromptReco-v1"
-        if runnum > "302664" and run <= "304819":
-            process = "Run2017E-PromptReco-v1"
-        if runnum > "304911" and run <= "306462":
-            process = "Run2017F-PromptReco-v1"
-        if runnum > "306463" and run <= "306826":
-            process = "Run2017G-PromptReco-v1"
-        if runnum > "306828" and run <= "307080":
-            process = "Run2017H-PromptReco-v1"
-        if runnum > "308327" and run <= "315250":
-            process = "Commissioning2018-PromptReco-v1"
-        if runnum > "315260" and run <= "316181":
-            process = "Run2018A-PromptReco-v1"
-        if runnum > "316246" and run <= "316976":
-            process = "Run2018A-PromptReco-v2"
-        if runnum > "316998" and run <= "317943":
-            process = "Run2018B-PromptReco-v1"
-        if runnum > "318046" and run <= "319308":
-            process = "Run2018B-PromptReco-v2"
-        if runnum > "319313" and run <= "319413":
-            process = "Run2018C-PromptReco-v1"
-        if runnum > "319415" and run <= "319823":
-            process = "Run2018C-PromptReco-v2"
-        if runnum > "319826" and run <= "320239":
-            process = "Run2018C-PromptReco-v3"
+        datasetlist = query_DBS(opener,
+                "https://cmsweb.cern.ch/dbs/prod/global/DBSReader/datasets",
+                "run_num=%s" % (runnum))
+
+        for el in datasetlist:
+            if re.match(to_match, el["dataset"]):
+                print("for run: %s we match this dataset:%s " % (runnum, el["dataset"]))
+                process = el["dataset"].split("/")[2]
+                #if we match this means we don't need to check other datasets
+                break
 
         serverurl = 'https://cmsweb.cern.ch/dqm/offline'
         ident = "DQMToJson/1.0 python/%d.%d.%d" % sys.version_info[:3]
-        tk = dqm_get_json(serverurl, runnum, "/Cosmics/%s/DQMIO" % process, "Tracking/TrackParameters/GeneralProperties", rootContent=True, ident=ident)
+        tk = dqm_get_json(serverurl, runnum, "/Cosmics/%s/DQMIO" % process,
+                "Tracking/TrackParameters/GeneralProperties", rootContent=True, ident=ident)
 
         if not tk.keys():
             print("--> run: %s not in DQM or Tracking plot do not exist" % (runnum))

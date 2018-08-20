@@ -2,6 +2,7 @@ import re
 import sys
 import array
 import urllib2
+import json
 
 from x509auth import *
 from ROOT import TBufferFile, TH1F, TProfile, TH1F, TH2F
@@ -44,3 +45,20 @@ def dqm_get_samples(server, match, type="offline_data", ident=None):
         if l['type'] == type:
             ret += [ (int(x['run']), x['dataset']) for x in l['items'] ]
     return ret
+
+def build_opener():
+    """
+    return x509 opener for certificate secured HTTPS urls
+    """
+    return urllib2.build_opener(X509CertOpen())
+
+def query_DBS(opener, server, query):
+    """
+    query DBSReader API for specific query
+    """
+    url = "%s?%s" % (server, query)
+    req = urllib2.Request(url)
+
+    data = opener.open(req).read()
+
+    return json.loads(data)
