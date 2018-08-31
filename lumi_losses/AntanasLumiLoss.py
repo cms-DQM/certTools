@@ -561,7 +561,9 @@ if __name__ == '__main__':
 
     calculate_mixed_losses()
     calculate_exclussie_loss_by_run()
-    calculate_trk_HV_losses()
+    # we calculate TK_HV for all except dqm only
+    if args.dqm_only == False:
+        calculate_trk_HV_losses()
 
     if __first_run == 294927:
         logging.debug("Adding lumi lost for Comissioning")
