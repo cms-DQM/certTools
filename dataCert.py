@@ -230,7 +230,7 @@ class Certifier():
         # convert resthub format to useful list of runs
         # 0th value is runnumber as specified in __query
 
-        list_of_runs = [el[0] for el in rr_data["data"]]
+        list_of_runs = [el[0] for el in rr_data]
         return list_of_runs
 
     def get_list_of_lumis(self, query):
@@ -611,7 +611,7 @@ if __name__ == '__main__':
     rhub_query = cert.generateFilter()
     list_of_runs = cert.get_list_of_runs(cert.generate_runs_query())
     lumi_data = cert.get_list_of_lumis(rhub_query)
-    cert.cert_json = cert.generate_runs_of_lumis(lumi_data["data"], list_of_runs)
+    cert.cert_json = cert.generate_runs_of_lumis(lumi_data, list_of_runs)
 
     if (cert.useDBScache == "True" or
            cert.usedbs or cert.useDAS):
