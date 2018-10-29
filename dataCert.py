@@ -222,7 +222,7 @@ class Certifier():
 
         try:
             api = RhApi(self.restHubURL, debug=self.verbose)
-            rr_data = api.json(query, inline_clobs=True)
+            rr_data = api.json_all(query, inline_clobs=True)
         except Exception as ex:
             print("Error while using RestHub API: %s" % (ex))
             sys.exit(-1)
@@ -240,7 +240,7 @@ class Certifier():
 
         try:
             api = RhApi(self.restHubURL, debug=self.verbose)
-            rr_data = api.json(query, inline_clobs=True)
+            rr_data = api.json_all(query, inline_clobs=True)
         except Exception as ex:
             print("Error while using RestHub API: %s" % (ex))
             sys.exit(-1)
